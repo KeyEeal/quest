@@ -4,7 +4,22 @@ const STORAGE_KEYS = {
   badges: "birthdayQuest.badges",
   completedRoutes: "birthdayQuest.completedRoutes",
   secretUnlocked: "birthdayQuest.secretUnlocked",
-  secretViewed: "birthdayQuest.secretViewed"
+  secretViewed: "birthdayQuest.secretViewed",
+  stageLockouts: "birthdayQuest.stageLockouts",
+  resetUnlocked: "birthdayQuest.resetUnlocked"
+};
+
+const RESET_PASSWORD = "lingling";
+const LOCKOUT_DURATIONS = [
+  30 * 60 * 1000,
+  60 * 60 * 1000,
+  2 * 60 * 60 * 1000,
+  12 * 60 * 60 * 1000
+];
+const LOCKOUT_MESSAGES = {
+  ranger: "The forest closes around you. Wait for the trail to reveal itself again.",
+  scholar: "The candles dim. The shelf refuses another answer for now.",
+  theatre: "The curtain falls. The next cue will not be given yet."
 };
 
 const ROUTES = {
@@ -212,11 +227,14 @@ let currentStageIndex = 0;
 let currentWords = [];
 let stageSolved = false;
 let activePuzzleCleanup = null;
+let activeScreenCleanup = null;
+let currentView = "home";
+let currentLockoutKey = null;
 
 if (hadAllBadgesAtLoad && !state.secretUnlocked) {
   state.secretUnlocked = true;
-  saveState();
 }
+saveState();
 
 function safeParseArray(key) {
   try {
@@ -228,12 +246,46 @@ function safeParseArray(key) {
   }
 }
 
+function safeParseObject(key) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "{}");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch (error) {
+    console.warn(`Could not read ${key}; using an empty object.`, error);
+    return {};
+  }
+}
+
+function loadStageLockouts() {
+  const stored = safeParseObject(STORAGE_KEYS.stageLockouts);
+  return Object.fromEntries(Object.entries(stored).flatMap(([stageKey, entry]) => {
+    if (!entry || typeof entry !== "object") return [];
+    const failures = Math.max(0, Math.floor(Number(entry.failures) || 0));
+    const lockedUntil = Math.max(0, Number(entry.lockedUntil) || 0);
+    return failures > 0 ? [[stageKey, { failures, lockedUntil }]] : [];
+  }));
+}
+
+function emptyState() {
+  return {
+    badges: [],
+    completedRoutes: [],
+    secretUnlocked: false,
+    secretViewed: false,
+    stageLockouts: {},
+    resetUnlocked: false
+  };
+}
+
 function loadState() {
   return {
     badges: safeParseArray(STORAGE_KEYS.badges).filter((badge) => ALL_BADGES.includes(badge)),
     completedRoutes: safeParseArray(STORAGE_KEYS.completedRoutes).filter((routeId) => ROUTE_IDS.includes(routeId)),
     secretUnlocked: localStorage.getItem(STORAGE_KEYS.secretUnlocked) === "true",
-    secretViewed: localStorage.getItem(STORAGE_KEYS.secretViewed) === "true"
+    secretViewed: localStorage.getItem(STORAGE_KEYS.secretViewed) === "true",
+    stageLockouts: loadStageLockouts(),
+    resetUnlocked: localStorage.getItem(STORAGE_KEYS.resetUnlocked) === "true"
+      || localStorage.getItem(STORAGE_KEYS.secretViewed) === "true"
   };
 }
 
@@ -242,19 +294,32 @@ function saveState() {
   localStorage.setItem(STORAGE_KEYS.completedRoutes, JSON.stringify(state.completedRoutes));
   localStorage.setItem(STORAGE_KEYS.secretUnlocked, String(state.secretUnlocked));
   localStorage.setItem(STORAGE_KEYS.secretViewed, String(state.secretViewed));
+  localStorage.setItem(STORAGE_KEYS.stageLockouts, JSON.stringify(state.stageLockouts));
+  localStorage.setItem(STORAGE_KEYS.resetUnlocked, String(state.resetUnlocked));
 }
 
 function resetQuest() {
+  if (!state.resetUnlocked) {
+    const password = window.prompt("Enter the reset password.");
+    if (password === null) return;
+    if (password !== RESET_PASSWORD) {
+      window.alert("Reset rejected.");
+      return;
+    }
+  }
+
   const confirmed = window.confirm("Reset all badges, completed roads, and secret progress?");
   if (!confirmed) return;
 
-  Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
-  state = {
-    badges: [],
-    completedRoutes: [],
-    secretUnlocked: false,
-    secretViewed: false
-  };
+  resetAllProgress();
+}
+
+function resetAllProgress() {
+  Object.keys(localStorage)
+    .filter((key) => key.startsWith("birthdayQuest."))
+    .forEach((key) => localStorage.removeItem(key));
+  state = emptyState();
+  saveState();
   hadAllBadgesAtLoad = false;
   resetCurrentRoute();
   updateBadgePanel();
@@ -267,6 +332,7 @@ function resetCurrentRoute() {
   currentStageIndex = 0;
   currentWords = [];
   stageSolved = false;
+  currentLockoutKey = null;
 }
 
 function normalizeAnswer(value) {
@@ -281,22 +347,119 @@ function routeClass(routeId) {
   return `route-${routeId}`;
 }
 
+function stageLockoutKey(routeId, stageIndex) {
+  return `${routeId}-${stageIndex + 1}`;
+}
+
+function phraseLockoutKey(routeId) {
+  return `${routeId}-phrase`;
+}
+
+function activeLockout(stageKey) {
+  const lockout = state.stageLockouts[stageKey];
+  if (!lockout) return null;
+  if (lockout.lockedUntil > Date.now()) return lockout;
+
+  if (lockout.lockedUntil !== 0) {
+    lockout.lockedUntil = 0;
+    saveState();
+  }
+  return null;
+}
+
+function registerFailure(stageKey) {
+  const previousFailures = state.stageLockouts[stageKey]?.failures || 0;
+  const failures = previousFailures + 1;
+  const durationIndex = Math.min(failures - 1, LOCKOUT_DURATIONS.length - 1);
+  const lockout = {
+    failures,
+    lockedUntil: Date.now() + LOCKOUT_DURATIONS[durationIndex]
+  };
+  state.stageLockouts[stageKey] = lockout;
+  saveState();
+  return lockout;
+}
+
+function formatLockoutTime(milliseconds) {
+  const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds]
+    .map((part) => String(part).padStart(2, "0"))
+    .join(":");
+}
+
+function renderLockout(route, stageTitle, stageKey, onExpired) {
+  const lockout = activeLockout(stageKey);
+  if (!lockout) {
+    onExpired();
+    return;
+  }
+
+  currentView = "lockout";
+  currentLockoutKey = stageKey;
+  setScreen(`
+    <section class="screen parchment content-screen route-screen lockout-screen ${routeClass(route.id)}" aria-labelledby="lockout-title">
+      <div class="lockout-content">
+        <p class="section-label">${route.name}</p>
+        <h2 id="lockout-title">${stageTitle}</h2>
+        <p class="lead lockout-message">${LOCKOUT_MESSAGES[route.id]}</p>
+        <div class="lockout-timer" role="timer" aria-live="polite">
+          <span>Trail reopens in</span>
+          <strong id="lockout-countdown">${formatLockoutTime(lockout.lockedUntil - Date.now())}</strong>
+        </div>
+        <div class="button-row">
+          <button class="primary-button" id="lockout-home-button" type="button">Return Home</button>
+          <button class="secondary-button" id="lockout-routes-button" type="button">Choose Another Relic</button>
+        </div>
+      </div>
+    </section>
+  `);
+
+  const countdown = document.querySelector("#lockout-countdown");
+  let countdownTimer = null;
+  const updateCountdown = () => {
+    const remaining = lockout.lockedUntil - Date.now();
+    if (remaining > 0) {
+      countdown.textContent = formatLockoutTime(remaining);
+      return;
+    }
+
+    window.clearInterval(countdownTimer);
+    state.stageLockouts[stageKey].lockedUntil = 0;
+    saveState();
+    currentLockoutKey = null;
+    activePuzzleCleanup = null;
+    onExpired();
+  };
+
+  countdownTimer = window.setInterval(updateCountdown, 1000);
+  activePuzzleCleanup = () => window.clearInterval(countdownTimer);
+  document.querySelector("#lockout-home-button").addEventListener("click", renderHome);
+  document.querySelector("#lockout-routes-button").addEventListener("click", renderLetter);
+}
+
 function disposeActivePuzzle() {
   if (typeof activePuzzleCleanup === "function") activePuzzleCleanup();
   activePuzzleCleanup = null;
 }
 
-function setScreen(markup) {
-  disposeActivePuzzle();
-  app.innerHTML = markup;
-  window.scrollTo({ top: 0, behavior: "smooth" });
+function disposeActiveScreen() {
+  if (typeof activeScreenCleanup === "function") activeScreenCleanup();
+  activeScreenCleanup = null;
 }
 
-function updateBadgePanel() {
-  const count = state.badges.length;
-  badgeCount.textContent = `Badges found: ${count} / 3`;
+function setScreen(markup, { immersive = false } = {}) {
+  disposeActivePuzzle();
+  disposeActiveScreen();
+  document.body.classList.toggle("immersive-stage-active", immersive);
+  app.innerHTML = markup;
+  if (!immersive) window.scrollTo({ top: 0, behavior: "smooth" });
+}
 
-  badgeList.innerHTML = ROUTE_IDS.map((routeId) => {
+function badgeItemsMarkup() {
+  return ROUTE_IDS.map((routeId) => {
     const route = ROUTES[routeId];
     const earned = state.badges.includes(route.badge);
     return `
@@ -311,6 +474,12 @@ function updateBadgePanel() {
       </div>
     `;
   }).join("");
+}
+
+function updateBadgePanel() {
+  const count = state.badges.length;
+  badgeCount.textContent = `Badges found: ${count} / 3`;
+  badgeList.innerHTML = badgeItemsMarkup();
 
   if (state.secretUnlocked) {
     ledgerNote.textContent = state.secretViewed
@@ -327,6 +496,7 @@ function updateBadgePanel() {
 
 function renderHome() {
   resetCurrentRoute();
+  currentView = "home";
   const secretAvailable = state.secretUnlocked && hadAllBadgesAtLoad;
   const primaryLetterLabel = secretAvailable ? "Open the Final Letter" : "Open the Letter";
   const secretCard = secretAvailable
@@ -352,6 +522,7 @@ function renderHome() {
           <button class="primary-button" id="open-letter-button" type="button">${primaryLetterLabel}</button>
         </div>
         <p class="home-progress">Badges found: ${state.badges.length} / 3</p>
+        ${state.resetUnlocked ? '<p class="completion-notice reset-free-note">The old seal is gone. Reset Quest is now free to use.</p>' : ""}
         ${secretCard}
       </div>
     </section>
@@ -366,6 +537,8 @@ function renderHome() {
 }
 
 function renderLetter() {
+  currentView = "letter";
+  currentLockoutKey = null;
   const relicCards = ROUTE_IDS.map((routeId) => {
     const route = ROUTES[routeId];
     const completed = state.completedRoutes.includes(routeId);
@@ -410,6 +583,8 @@ function startRoute(routeId) {
   currentStageIndex = 0;
   currentWords = [];
   stageSolved = false;
+  currentView = "route";
+  currentLockoutKey = null;
 
   setScreen(`
     <section class="screen parchment content-screen route-screen ${routeClass(routeId)}" aria-labelledby="route-title">
@@ -433,6 +608,62 @@ function startRoute(routeId) {
   document.querySelector("#choose-another-button").addEventListener("click", renderLetter);
 }
 
+function puzzleInstructionCopy(type) {
+  const instructions = {
+    text: "Enter one answer and submit it. Answers ignore capitalization and extra spaces. A wrong submitted answer triggers this stage's lockout.",
+    wordle: "Find the five-letter word in six attempts. Green runes are correctly placed, amber runes belong elsewhere, and grey runes are absent. A physical keyboard works on desktop.",
+    memory: "Reveal two tiles at a time and reunite every matching pair. Matched tiles remain open until the whole set is complete.",
+    simon: "Play the signal sequence, watch its full order, then repeat each signal. Number keys 1 through 4 also select the four signals."
+  };
+  return instructions[type] || instructions.text;
+}
+
+function bindStageChrome() {
+  const modalPairs = [
+    ["#stage-instructions-button", "#stage-instructions-modal"],
+    ["#stage-badges-button", "#stage-badges-modal"]
+  ];
+  let activeModal = null;
+
+  function closeModal(modal = activeModal) {
+    if (!modal) return;
+    modal.hidden = true;
+    const trigger = document.querySelector(`[aria-controls="${modal.id}"]`);
+    if (trigger) {
+      trigger.setAttribute("aria-expanded", "false");
+      trigger.focus();
+    }
+    if (activeModal === modal) activeModal = null;
+  }
+
+  function openModal(trigger, modal) {
+    if (activeModal) closeModal(activeModal);
+    modal.hidden = false;
+    trigger.setAttribute("aria-expanded", "true");
+    activeModal = modal;
+    modal.querySelector(".stage-drawer-close").focus();
+  }
+
+  modalPairs.forEach(([triggerSelector, modalSelector]) => {
+    const trigger = document.querySelector(triggerSelector);
+    const modal = document.querySelector(modalSelector);
+    trigger.addEventListener("click", () => openModal(trigger, modal));
+  });
+
+  document.querySelectorAll("[data-stage-modal-close]").forEach((button) => {
+    button.addEventListener("click", () => closeModal(button.closest(".stage-modal")));
+  });
+
+  const handleEscape = (event) => {
+    if (event.key === "Escape" && activeModal) closeModal(activeModal);
+  };
+  document.addEventListener("keydown", handleEscape);
+  document.querySelector("#stage-home-button").addEventListener("click", renderHome);
+  document.querySelector("#stage-reset-button").addEventListener("click", resetQuest);
+
+  return () => document.removeEventListener("keydown", handleEscape);
+}
+
 function renderStage() {
   const route = ROUTES[currentRouteId];
   if (!route) {
@@ -441,32 +672,85 @@ function renderStage() {
   }
 
   const stage = route.stages[currentStageIndex];
+  const lockoutKey = stageLockoutKey(route.id, currentStageIndex);
+  if (activeLockout(lockoutKey)) {
+    renderLockout(route, stage.title, lockoutKey, renderStage);
+    return;
+  }
+
+  currentView = "stage";
+  currentLockoutKey = null;
   stageSolved = false;
+  const puzzleType = stage.type || "text";
   const dots = route.stages.map((_, index) => {
     const status = index < currentStageIndex ? "complete" : index === currentStageIndex ? "current" : "";
     return `<span class="progress-dot ${status}" aria-hidden="true"></span>`;
   }).join("");
 
   setScreen(`
-    <section class="screen stage-frame route-screen ${routeClass(route.id)}" aria-labelledby="stage-title">
-      <div class="stage-side">
-        <p class="section-label">${route.name}</p>
-        <h2>Trial ${currentStageIndex + 1} of 4</h2>
-        <p>${route.theme}</p>
-        ${imageAsset(stage.image, `${stage.title} illustration`, "stage-art")}
-        <div class="progress-dots" aria-label="Stage ${currentStageIndex + 1} of 4">${dots}</div>
+    <section class="screen stage-experience route-screen ${routeClass(route.id)}" style="--stage-background-image: url('assets/images/${stage.image}');" aria-labelledby="stage-title">
+      <header class="stage-hud" aria-label="Current trial controls">
+        <div class="stage-hud-route">
+          <strong>${route.name}</strong>
+          <span>Trial ${currentStageIndex + 1} of 4</span>
+        </div>
+        <div class="stage-hud-stats" aria-label="Current quest progress">
+          <span>Badges: ${state.badges.length} / 3</span>
+          <span id="stage-fragment-count">Fragments: ${currentWords.length} / 4</span>
+        </div>
+        <div class="stage-hud-actions">
+          <button class="stage-hud-button" id="stage-instructions-button" type="button" aria-controls="stage-instructions-modal" aria-expanded="false">Instructions</button>
+          <button class="stage-hud-button" id="stage-badges-button" type="button" aria-controls="stage-badges-modal" aria-expanded="false">View Badges</button>
+          <button class="stage-hud-button" id="stage-home-button" type="button">Home</button>
+          <button class="stage-hud-button stage-hud-reset" id="stage-reset-button" type="button">Reset Quest</button>
+        </div>
+      </header>
+
+      <div class="stage-viewport">
+        <aside class="stage-narration">
+          <p class="section-label">${puzzleType} trial</p>
+          <h1 id="stage-title">${stage.title}</h1>
+          <p class="stage-description">${stage.description}</p>
+          <p class="stage-route-context">${route.theme}</p>
+          <div class="progress-dots" aria-label="Stage ${currentStageIndex + 1} of 4">${dots}</div>
+        </aside>
+
+        <article class="stage-puzzle-panel" aria-label="${stage.title} puzzle">
+          <div class="stage-panel-heading">
+            <span>${route.relic}</span>
+            <strong>Trial ${currentStageIndex + 1}</strong>
+          </div>
+          <div class="puzzle-root" id="puzzle-root"></div>
+          <div id="reward-area"></div>
+        </article>
       </div>
-      <div class="stage-card">
-        <p class="section-label">Stage ${currentStageIndex + 1} · ${stage.type || "text"} puzzle</p>
-        <h3 id="stage-title">${stage.title}</h3>
-        <p class="stage-description">${stage.description}</p>
-        <div class="puzzle-root" id="puzzle-root"></div>
-        <div id="reward-area"></div>
+
+      <div class="stage-modal" id="stage-instructions-modal" hidden>
+        <button class="stage-modal-backdrop" type="button" data-stage-modal-close aria-label="Close instructions"></button>
+        <section class="stage-drawer" role="dialog" aria-modal="true" aria-labelledby="stage-instructions-title">
+          <button class="stage-drawer-close" type="button" data-stage-modal-close aria-label="Close instructions">×</button>
+          <p class="section-label">How this trial works</p>
+          <h2 id="stage-instructions-title">Instructions</h2>
+          <p>${puzzleInstructionCopy(puzzleType)}</p>
+          <p>${stage.description}</p>
+        </section>
+      </div>
+
+      <div class="stage-modal" id="stage-badges-modal" hidden>
+        <button class="stage-modal-backdrop" type="button" data-stage-modal-close aria-label="Close badge ledger"></button>
+        <section class="stage-drawer stage-badge-drawer" role="dialog" aria-modal="true" aria-labelledby="stage-badges-title">
+          <button class="stage-drawer-close" type="button" data-stage-modal-close aria-label="Close badge ledger">×</button>
+          <p class="section-label">Badge Ledger</p>
+          <h2 id="stage-badges-title">Collected seals</h2>
+          <p class="stage-drawer-count">Badges: ${state.badges.length} / 3</p>
+          <div class="stage-badge-list">${badgeItemsMarkup()}</div>
+        </section>
       </div>
     </section>
-  `);
+  `, { immersive: true });
 
-  const renderer = puzzleRenderers[stage.type || "text"] || renderTextPuzzle;
+  activeScreenCleanup = bindStageChrome();
+  const renderer = puzzleRenderers[puzzleType] || renderTextPuzzle;
   activePuzzleCleanup = renderer(route, stage, currentStageIndex) || null;
 }
 
@@ -484,6 +768,9 @@ function completeStage(routeId, stageIndex, rewardWord) {
   stageSolved = true;
   if (!currentWords.includes(rewardWord)) currentWords.push(rewardWord);
   disposeActivePuzzle();
+
+  const fragmentCount = document.querySelector("#stage-fragment-count");
+  if (fragmentCount) fragmentCount.textContent = `Fragments: ${currentWords.length} / 4`;
 
   const puzzleRoot = document.querySelector("#puzzle-root");
   if (puzzleRoot) {
@@ -540,10 +827,9 @@ function renderTextPuzzle(route, stage, stageIndex) {
       return;
     }
 
-    feedback.className = "feedback error shake";
-    feedback.textContent = "The road stays silent. Try another answer, or ask for a hint.";
-    window.setTimeout(() => feedback.classList.remove("shake"), 320);
-    input.select();
+    const lockoutKey = stageLockoutKey(route.id, stageIndex);
+    registerFailure(lockoutKey);
+    renderLockout(route, stage.title, lockoutKey, renderStage);
   });
 
   input.addEventListener("keydown", (event) => {
@@ -556,7 +842,7 @@ function renderTextPuzzle(route, stage, stageIndex) {
     feedback.className = "feedback";
     feedback.textContent = `Hint: ${stage.hint}`;
   });
-  input.focus();
+  if (!window.matchMedia("(max-width: 640px)").matches) input.focus();
 }
 
 /*
@@ -602,6 +888,7 @@ function renderWordlePuzzle(route, stage, stageIndex) {
     attempt = 0;
     guess = "";
     finished = false;
+    const showKeyboardByDefault = window.matchMedia("(max-width: 640px)").matches;
     root.innerHTML = `
       <div class="wordle-instructions">
         <span><i class="legend-correct"></i> right place</span>
@@ -610,11 +897,22 @@ function renderWordlePuzzle(route, stage, stageIndex) {
       </div>
       <div class="wordle-board" role="grid" aria-label="Six guesses for a ${target.length}-letter word">${boardMarkup()}</div>
       <p class="feedback wordle-feedback" id="wordle-feedback" aria-live="polite">Type or use the runic keyboard.</p>
-      <div class="wordle-keyboard" aria-label="Word puzzle keyboard">${keyboardMarkup()}</div>
+      <div class="wordle-keyboard-toggle-row">
+        <button class="secondary-button wordle-keyboard-toggle" id="wordle-keyboard-toggle" type="button" aria-controls="wordle-keyboard" aria-expanded="${showKeyboardByDefault ? "true" : "false"}">${showKeyboardByDefault ? "Hide Runic Keyboard" : "Show Runic Keyboard"}</button>
+      </div>
+      <div class="wordle-keyboard" id="wordle-keyboard" ${showKeyboardByDefault ? "" : "hidden"} aria-label="Word puzzle keyboard">${keyboardMarkup()}</div>
       <div class="wordle-retry" id="wordle-retry"></div>
     `;
     root.querySelectorAll("[data-wordle-key]").forEach((button) => {
       button.addEventListener("click", () => handleKey(button.dataset.wordleKey));
+    });
+    const keyboard = root.querySelector("#wordle-keyboard");
+    const keyboardToggle = root.querySelector("#wordle-keyboard-toggle");
+    keyboardToggle.addEventListener("click", () => {
+      const willShow = keyboard.hidden;
+      keyboard.hidden = !willShow;
+      keyboardToggle.setAttribute("aria-expanded", String(willShow));
+      keyboardToggle.textContent = willShow ? "Hide Runic Keyboard" : "Show Runic Keyboard";
     });
   }
 
@@ -710,6 +1008,10 @@ function renderWordlePuzzle(route, stage, stageIndex) {
   }
 
   function handlePhysicalKey(event) {
+    if (document.querySelector(".stage-modal:not([hidden])")) return;
+    if (event.target?.matches?.("input, textarea, select, [contenteditable='true']")) return;
+    if (event.target instanceof HTMLButtonElement && (event.key === "Enter" || event.key === " ")) return;
+
     if (/^[a-zA-Z]$/.test(event.key)) {
       handleKey(event.key.toUpperCase());
     } else if (event.key === "Enter" || event.key === "Backspace") {
@@ -995,6 +1297,14 @@ function renderPhraseGate() {
     return;
   }
 
+  const lockoutKey = phraseLockoutKey(route.id);
+  if (activeLockout(lockoutKey)) {
+    renderLockout(route, "The Phrase Gate", lockoutKey, renderPhraseGate);
+    return;
+  }
+
+  currentView = "phrase";
+  currentLockoutKey = null;
   const wordTokens = currentWords.map((word) => `<span class="word-token">${word}</span>`).join("");
   setScreen(`
     <section class="screen parchment phrase-screen route-screen ${routeClass(route.id)}" aria-labelledby="phrase-title">
@@ -1022,9 +1332,8 @@ function renderPhraseGate() {
     if (value === normalizeAnswer(route.finalPhrase)) {
       completeRoute();
     } else {
-      feedback.className = "feedback error shake";
-      feedback.textContent = "Almost. Keep the words in the order they were found, with a space between each one.";
-      window.setTimeout(() => feedback.classList.remove("shake"), 320);
+      registerFailure(lockoutKey);
+      renderLockout(route, "The Phrase Gate", lockoutKey, renderPhraseGate);
     }
   });
   document.querySelector("#phrase-answer").focus();
@@ -1047,6 +1356,8 @@ function completeRoute() {
 function renderRouteEnding(routeId) {
   const route = ROUTES[routeId];
   const allBadgesNow = ALL_BADGES.every((badge) => state.badges.includes(badge));
+  currentView = "route-ending";
+  currentLockoutKey = null;
 
   setScreen(`
     <section class="screen parchment content-screen route-screen ${routeClass(route.id)}" aria-labelledby="ending-title">
@@ -1083,8 +1394,11 @@ function renderSecretEnding() {
   }
 
   state.secretViewed = true;
+  state.resetUnlocked = true;
   saveState();
   updateBadgePanel();
+  currentView = "secret-ending";
+  currentLockoutKey = null;
 
   const badges = ALL_BADGES.map((badge) => `<span>${badge}</span>`).join("");
   setScreen(`
@@ -1101,6 +1415,7 @@ function renderSecretEnding() {
           <p>[Placeholder closing paragraph: a warm wish for the year ahead, written directly to the birthday traveler.]</p>
           <div class="secret-badges" aria-label="All collected badges">${badges}</div>
           <span class="final-title">Finder of Every Road</span>
+          <p class="completion-notice">The old seal is gone. Reset Quest is now free to use.</p>
           <div class="button-row">
             <button class="primary-button" id="secret-home-button" type="button">Return Home</button>
             <button class="secondary-button" id="secret-reset-button" type="button">Reset Quest</button>
@@ -1117,5 +1432,79 @@ function renderSecretEnding() {
 homeButton.addEventListener("click", renderHome);
 resetButton.addEventListener("click", resetQuest);
 
+function installDevHelpers() {
+  if (new URLSearchParams(window.location.search).get("dev") !== "1") {
+    delete window.BQ_DEV;
+    return;
+  }
+
+  window.BQ_DEV = {
+    clearLockouts() {
+      state.stageLockouts = {};
+      saveState();
+      if (currentView === "lockout") {
+        const wasPhraseGate = currentLockoutKey?.endsWith("-phrase");
+        currentLockoutKey = null;
+        if (wasPhraseGate) renderPhraseGate();
+        else renderStage();
+      }
+      return true;
+    },
+    resetAll() {
+      resetAllProgress();
+      return true;
+    },
+    unlockAllBadges() {
+      state.badges = [...ALL_BADGES];
+      state.completedRoutes = [...ROUTE_IDS];
+      saveState();
+      updateBadgePanel();
+      renderHome();
+      return [...state.badges];
+    },
+    unlockSecret() {
+      state.badges = [...ALL_BADGES];
+      state.completedRoutes = [...ROUTE_IDS];
+      state.secretUnlocked = true;
+      hadAllBadgesAtLoad = true;
+      saveState();
+      updateBadgePanel();
+      renderHome();
+      return true;
+    },
+    completeCurrentStage() {
+      const route = ROUTES[currentRouteId];
+      if (!route) return false;
+
+      if (currentView === "phrase" || currentLockoutKey === phraseLockoutKey(route.id)) {
+        delete state.stageLockouts[phraseLockoutKey(route.id)];
+        saveState();
+        completeRoute();
+        return true;
+      }
+
+      const stage = route.stages[currentStageIndex];
+      if (!stage) return false;
+      delete state.stageLockouts[stageLockoutKey(route.id, currentStageIndex)];
+      saveState();
+      if (currentView !== "stage") renderStage();
+      completeStage(route.id, currentStageIndex, stage.reward);
+      return true;
+    },
+    showState() {
+      const snapshot = JSON.parse(JSON.stringify({
+        ...state,
+        currentRouteId,
+        currentStageIndex,
+        currentWords,
+        currentView
+      }));
+      console.log("Birthday Quest state", snapshot);
+      return snapshot;
+    }
+  };
+}
+
 updateBadgePanel();
 renderHome();
+installDevHelpers();

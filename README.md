@@ -41,6 +41,8 @@ No build workflow is required.
 - `birthdayQuest.completedRoutes` — completed route IDs
 - `birthdayQuest.secretUnlocked` — whether the page-load secret check unlocked the final door
 - `birthdayQuest.secretViewed` — whether the visitor opened the true letter
+- `birthdayQuest.stageLockouts` — per-stage failure counts and lockout expiry times
+- `birthdayQuest.resetUnlocked` — whether viewing the secret ending removed the reset password requirement
 
 Individual route stages and their collected words are held only in memory and restart after a refresh. Earned route endings and badges persist.
 
@@ -48,9 +50,9 @@ The secret door is intentionally reload-gated. Earning the third badge shows onl
 
 ## Reset quest progress
 
-Use the visible **Reset Quest** button in the site header or on the secret ending. The browser asks for confirmation, removes all four Birthday Quest storage keys, and returns to a clean home screen.
+Use the visible **Reset Quest** button in the site header or on the secret ending. Before the secret ending has been viewed, reset requires the quest password and then asks for confirmation. Viewing the secret ending permanently removes the password requirement for that progress state. A reset clears all Birthday Quest progress and returns to a clean home screen.
 
-For manual testing, the same keys can be removed through the browser developer tools under **Application/Storage → Local Storage**.
+For manual testing, add `?dev=1` to the URL to expose `window.BQ_DEV` in the browser console. The helper object can clear lockouts, reset all progress, unlock badges or the secret, complete the current stage, and display the current state. It is not exposed without `?dev=1` and no cheats are shown in the interface.
 
 ## Puzzle types
 
