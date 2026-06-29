@@ -5,11 +5,11 @@ The Birthday Quest is a static, fantasy-themed birthday puzzle website. A visito
 The stages mix four reusable puzzle types:
 
 - text riddles
-- Wordle-style five-letter puzzles
+- Wordle-style word puzzles
 - memory card matching games
 - Simon-style sequence-memory games
 
-Every puzzle resolves through the same `completeStage(routeId, stageIndex, rewardWord)` function. The route flow remains: solve a stage, earn one word, collect four words, enter the final phrase, unlock the route ending, and earn its badge.
+Every puzzle resolves through the same `completeStage(routeId, stageIndex, rewardFragment)` function. The route flow remains: solve a stage, earn one phrase fragment, collect four fragments, reconstruct the final phrase, unlock the route ending, and earn its badge.
 
 The project uses only HTML, CSS, and vanilla JavaScript. It has no backend, database, authentication, package manager, dependencies, or build step.
 
@@ -44,7 +44,7 @@ No build workflow is required.
 - `birthdayQuest.stageLockouts` — per-stage failure counts and lockout expiry times
 - `birthdayQuest.resetUnlocked` — whether viewing the secret ending removed the reset password requirement
 
-Individual route stages and their collected words are held only in memory and restart after a refresh. Earned route endings and badges persist.
+Individual route stages and their collected phrase fragments are held only in memory and restart after a refresh. Earned route endings and badges persist.
 
 The secret door is intentionally reload-gated. Earning the third badge shows only the third route ending and the hint that something may change when the world is entered again. On a later page load, the script sees that all three badges were already present, marks the secret as unlocked, and shows the final door on the home screen.
 
@@ -67,7 +67,7 @@ const puzzleRenderers = {
 };
 ```
 
-The route engine selects the renderer from each stage's `type`. Every renderer calls the shared completion function with the route ID, stage index, and configured reward word.
+The route engine selects the renderer from each stage's `type`. Every renderer calls the shared completion function with the route ID, stage index, and configured reward fragment.
 
 ### Text riddles
 
@@ -75,15 +75,15 @@ Text stages define `question`, `answer`, and `hint`. Answers are case-insensitiv
 
 ### Wordle-style puzzles
 
-Wordle stages define a five-letter `target`. The puzzle provides six attempts, duplicate-letter-aware correct/present/absent feedback, an onscreen keyboard, and physical keyboard support. It has no daily mode, sharing feature, external word list, or API. After six failed attempts, the answer is shown and **Try Again** resets that stage.
+Wordle stages define a `target`. The puzzle provides six attempts, duplicate-letter-aware correct/present/absent feedback, an onscreen keyboard that can be shown or collapsed, and physical keyboard support. It has no daily mode, sharing feature, external word list, or API. A wrong guess does not lock the stage; after all six guesses fail, the stage uses the normal per-stage lockout.
 
 ### Memory matching puzzles
 
-Memory stages define route-themed `symbols`. The deck duplicates and shuffles those symbols, permits two revealed cards at a time, marks matches, and completes when every pair is found. Small screens use four pairs; larger screens use up to six pairs. Cards are native buttons and work with mouse, touch, or keyboard.
+Memory stages define route-themed `symbols`, plus optional `pairCount`, `timeLimitSeconds`, and `mismatchLimit` settings. The default deck uses eight pairs / sixteen cards, duplicates and shuffles those symbols, permits two revealed cards at a time, marks matches, and completes when every pair is found. The timer starts on the first card flip. Timer expiry or too many mismatches uses the normal per-stage lockout.
 
 ### Simon-style sequence puzzles
 
-Simon stages define `signals` and a fixed `sequence`. The game flashes the configured signals, then compares the visitor's input one step at a time. A mistake provides feedback and a replay option. Signal buttons also map to number keys 1–4. Playback timing is shortened when reduced motion is requested.
+Simon stages define `signals` and configurable `rounds`, each with its own `sequence`, `replays`, and optional `reverseInput`. The game flashes each round, lets the visitor use allowed replays, then compares input one step at a time. A single wrong signal uses the normal per-stage lockout. Signal buttons also map to number keys, and playback becomes faster on later rounds while still respecting reduced-motion settings.
 
 ## Edit routes and puzzles
 
@@ -96,7 +96,7 @@ Every stage requires:
   type: "text", // text, wordle, memory, or simon
   title: "Puzzle title",
   description: "Short instructions or story copy.",
-  reward: "WORD",
+  rewardFragment: "TWO OR THREE WORDS",
   image: "stage-illustration.png"
 }
 ```
@@ -105,15 +105,15 @@ Then add the fields used by that puzzle type:
 
 - text: `question`, `answer`, `hint`
 - wordle: `target`
-- memory: `symbols` containing `{ id, label, symbol }` objects
-- simon: `signals` containing `{ id, label, symbol }` objects and a `sequence` of matching IDs
+- memory: `symbols` containing `{ id, label, symbol }` objects, plus optional `pairCount`, `timeLimitSeconds`, and `mismatchLimit`
+- simon: `signals` containing `{ id, label, symbol }` objects and `rounds` containing per-round `sequence` arrays and replay settings
 
-Keep each route's four reward words in the same order as its `finalPhrase`.
+Keep each route's four reward fragments in the same order as its `finalPhrase`.
 
 ## Edit final phrases and birthday messages
 
 - Route final phrases are the `finalPhrase` fields in `script.js`.
-- The four `reward` values for a route must spell that phrase in order.
+- The four `rewardFragment` values for a route must spell that phrase in order.
 - Route birthday messages are the `endingMessage` fields.
 - The true birthday letter is in `renderSecretEnding()`.
 - Route introduction and letter copy are also in `script.js`.

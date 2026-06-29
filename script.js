@@ -29,21 +29,21 @@ const ROUTES = {
     name: "Ranger’s Road",
     badge: "Ranger of the Old Road",
     icon: "⌁",
-    finalPhrase: "THE ROAD REMEMBERS YOU",
-    intro: "You have chosen The Map. The Ranger’s Road opens before you.",
-    theme: "Beyond the last lantern, an old road winds through forests, forgotten campfires, and promises that have outlived their makers.",
+    finalPhrase: "THE OLD ROAD REMEMBERS THOSE WHO WALK WITH QUIET COURAGE",
+    intro: "You have chosen The Map. The Ranger’s Road opens before you, warm as a cottage window and old as a mountain trail.",
+    theme: "Beyond the last lantern, an old road winds through forests, shared campfires, and the quiet courage that turns small travelers toward great quests.",
     routeImage: "ranger-route-bg.png",
     relicImage: "relic-map.png",
     badgeImage: "ranger-badge.png",
     endingTitle: "The Road Knows Your Name",
-    endingMessage: "[Placeholder birthday message for the Ranger’s Road ending. Add a warm memory about courage, loyalty, and every road still waiting ahead.]",
+    endingMessage: "The old road knows the worth of steady feet and loyal company. Somewhere ahead, a small table is warm with lamplight, and every mountain trail seems less lonely because you walked it with quiet courage.",
     stages: [
       {
         type: "wordle",
         title: "The Forest Word",
-        description: "Branches close over the path. Find the five-letter forest word in six attempts.",
-        target: "TRAIL",
-        reward: "THE",
+        description: "Branches close over the path. Find the ranger-lore camouflage word in six attempts.",
+        target: "MOTTLED",
+        rewardFragment: "THE OLD ROAD",
         image: "stage-ranger-1.png"
       },
       {
@@ -52,7 +52,7 @@ const ROUTES = {
         description: "Beside the embers rests something folded, weathered, and patient.",
         question: "I am folded when forgotten and opened when hope needs direction. What am I?",
         answer: "MAP",
-        reward: "ROAD",
+        rewardFragment: "REMEMBERS THOSE",
         hint: "Travelers use it before they are lost.",
         image: "stage-ranger-2.png"
       },
@@ -60,14 +60,23 @@ const ROUTES = {
         type: "simon",
         title: "The Signal Fire",
         description: "Watch the old road signals, then repeat their order without breaking the chain.",
-        sequence: ["fire", "lantern", "raven", "fire"],
-        signals: [
-          { id: "fire", label: "Signal Fire", symbol: "🔥" },
-          { id: "lantern", label: "Lantern", symbol: "🏮" },
-          { id: "raven", label: "Raven Call", symbol: "◆" },
-          { id: "horn", label: "Ranger Horn", symbol: "♬" }
+        rounds: [
+          { sequence: ["fire", "lantern", "raven"], replays: 2 },
+          { sequence: ["fire", "lantern", "raven", "horn"], replays: 2 },
+          { sequence: ["fire", "lantern", "raven", "horn", "bow", "cloak"], replays: 2 },
+          { sequence: ["fire", "lantern", "raven", "horn", "bow", "cloak", "compass", "star"], replays: 2 }
         ],
-        reward: "REMEMBERS",
+        signals: [
+          { id: "fire", label: "Fire", symbol: "🔥" },
+          { id: "lantern", label: "Lantern", symbol: "🏮" },
+          { id: "raven", label: "Raven", symbol: "◆" },
+          { id: "horn", label: "Horn", symbol: "♬" },
+          { id: "bow", label: "Bow", symbol: "⌁" },
+          { id: "cloak", label: "Cloak", symbol: "◒" },
+          { id: "compass", label: "Compass", symbol: "✣" },
+          { id: "star", label: "Star", symbol: "✦" }
+        ],
+        rewardFragment: "WHO WALK WITH",
         image: "stage-ranger-3.png"
       },
       {
@@ -76,7 +85,7 @@ const ROUTES = {
         description: "Three roads gleam beyond the gate, but only one asks for no applause.",
         question: "Which path does the faithful traveler choose: gold, glory, or quiet?",
         answer: "QUIET",
-        reward: "YOU",
+        rewardFragment: "QUIET COURAGE",
         hint: "The answer is not the loudest one.",
         image: "stage-ranger-4.png"
       }
@@ -88,14 +97,14 @@ const ROUTES = {
     name: "Scholar’s Library",
     badge: "Keeper of the Hidden Shelf",
     icon: "▤",
-    finalPhrase: "WISDOM OPENS HIDDEN DOORS",
-    intro: "You have chosen The Book. The Scholar’s Library stirs awake.",
-    theme: "Candles bloom between ancient shelves. Every answer moves a hidden mechanism somewhere behind the walls.",
+    finalPhrase: "WISDOM OPENS THE HIDDEN DOORS THAT PATIENCE LEARNS TO FIND",
+    intro: "You have chosen The Book. The Scholar’s Library stirs awake, all amber candles, deep scholarship, and patient ancient lore.",
+    theme: "Candles bloom between ancient shelves. Every answer moves a hidden mechanism, and every margin whispers of doors that open only for patience.",
     routeImage: "scholar-route-bg.png",
     relicImage: "relic-book.png",
     badgeImage: "library-badge.png",
     endingTitle: "The Hidden Shelf Opens",
-    endingMessage: "[Placeholder birthday message for the Scholar’s Library ending. Add a thoughtful note about curiosity, cleverness, and the worlds opened by a questioning mind.]",
+    endingMessage: "The hidden shelf opens for the patient mind. Its candlelit pages remember every careful question, every brave guess, and the deep scholarship that turns locked doors into invitations.",
     stages: [
       {
         type: "text",
@@ -103,7 +112,7 @@ const ROUTES = {
         description: "A small object waits on a lectern, holding more than its size should allow.",
         question: "What object holds a world but fits in your hands?",
         answer: "BOOK",
-        reward: "WISDOM",
+        rewardFragment: "WISDOM OPENS THE",
         hint: "A reader opens it.",
         image: "stage-library-1.png"
       },
@@ -111,15 +120,20 @@ const ROUTES = {
         type: "memory",
         title: "The Shelves Remember",
         description: "Turn the library tiles and reunite every matching pair.",
+        pairCount: 8,
+        timeLimitSeconds: 90,
+        mismatchLimit: 10,
         symbols: [
           { id: "book", label: "Book", symbol: "▤" },
           { id: "key", label: "Key", symbol: "⚿" },
           { id: "candle", label: "Candle", symbol: "♨" },
           { id: "shelf", label: "Shelf", symbol: "▥" },
           { id: "ink", label: "Ink", symbol: "✒" },
-          { id: "parchment", label: "Parchment", symbol: "▧" }
+          { id: "parchment", label: "Parchment", symbol: "▧" },
+          { id: "quill", label: "Quill", symbol: "✑" },
+          { id: "scroll", label: "Scroll", symbol: "⌁" }
         ],
-        reward: "OPENS",
+        rewardFragment: "HIDDEN DOORS THAT",
         image: "stage-library-2.png"
       },
       {
@@ -128,7 +142,7 @@ const ROUTES = {
         description: "Symbols crowd the margins, concealing a message beneath their pattern.",
         question: "What do you call knowledge hidden beneath symbols?",
         answer: "CODE",
-        reward: "HIDDEN",
+        rewardFragment: "PATIENCE LEARNS",
         hint: "Programmers write it. Puzzle-makers hide it.",
         image: "stage-library-3.png"
       },
@@ -137,7 +151,7 @@ const ROUTES = {
         title: "The Final Word",
         description: "The brass key waits for one last five-letter word.",
         target: "DOORS",
-        reward: "DOORS",
+        rewardFragment: "TO FIND",
         image: "stage-library-4.png"
       }
     ]
@@ -148,42 +162,57 @@ const ROUTES = {
     name: "Phantom’s Theatre",
     badge: "Voice Behind the Mask",
     icon: "◒",
-    finalPhrase: "THE FINAL SONG RISES",
-    intro: "You have chosen The Mask. The Phantom’s Theatre draws its curtains.",
-    theme: "The chandelier trembles above velvet seats. Somewhere past the curtain, an unseen orchestra waits for its cue.",
+    finalPhrase: "THE FINAL SONG RISES WHEN THE MASK YIELDS TO THE HEART",
+    intro: "You have chosen The Mask. The Phantom’s Theatre draws its curtains with velvet mystery and a candlelit hush.",
+    theme: "The chandelier trembles above velvet seats. Somewhere past the curtain, a hidden cue waits for a brave heart to step into the song.",
     routeImage: "theatre-route-bg.png",
     relicImage: "relic-mask.png",
     badgeImage: "theatre-badge.png",
     endingTitle: "The House Rises",
-    endingMessage: "[Placeholder birthday message for the Phantom’s Theatre ending. Add a dramatic, heartfelt note about music, mystery, and having the courage to be heard.]",
+    endingMessage: "The theatre keeps its mystery, but the mask has softened. From velvet dark to chandelier light, the house rises for the heart that dares to sing without hiding.",
     stages: [
       {
         type: "memory",
         title: "The Masked Pairings",
         description: "Turn the theatre tiles and reunite every matching prop.",
+        pairCount: 8,
+        timeLimitSeconds: 120,
+        mismatchLimit: 10,
         symbols: [
           { id: "mask", label: "Mask", symbol: "◒" },
           { id: "rose", label: "Rose", symbol: "✿" },
           { id: "chandelier", label: "Chandelier", symbol: "✦" },
           { id: "music", label: "Music Note", symbol: "♪" },
           { id: "curtain", label: "Curtain", symbol: "▥" },
-          { id: "candle", label: "Candle", symbol: "♨" }
+          { id: "candle", label: "Candle", symbol: "♨" },
+          { id: "mirror", label: "Mirror", symbol: "◇" },
+          { id: "violin", label: "Violin", symbol: "𝄞" }
         ],
-        reward: "THE",
+        rewardFragment: "THE FINAL SONG",
         image: "stage-theatre-1.png"
       },
       {
         type: "simon",
         title: "The Chandelier Sequence",
         description: "Watch the theatre lights, then repeat their cue from beginning to end.",
-        sequence: ["chandelier", "leftBalcony", "stageLamp", "rightBalcony", "chandelier"],
+        rounds: [
+          { sequence: ["chandelier", "stageLamp", "mask"], replays: 2 },
+          { sequence: ["chandelier", "leftBalcony", "rightBalcony", "stageLamp"], replays: 2 },
+          { sequence: ["mask", "violin", "rose", "curtain", "chandelier"], replays: 2 },
+          { sequence: ["chandelier", "leftBalcony", "rightBalcony", "stageLamp", "mask", "violin"], replays: 1 },
+          { sequence: ["chandelier", "leftBalcony", "rightBalcony", "stageLamp", "mask", "violin", "rose", "curtain"], replays: 1, reverseInput: true }
+        ],
         signals: [
           { id: "chandelier", label: "Chandelier", symbol: "✦" },
           { id: "leftBalcony", label: "Left Balcony", symbol: "◖" },
           { id: "rightBalcony", label: "Right Balcony", symbol: "◗" },
-          { id: "stageLamp", label: "Stage Lamp", symbol: "●" }
+          { id: "stageLamp", label: "Stage Lamp", symbol: "●" },
+          { id: "mask", label: "Mask", symbol: "◒" },
+          { id: "violin", label: "Violin", symbol: "𝄞" },
+          { id: "rose", label: "Rose", symbol: "✿" },
+          { id: "curtain", label: "Curtain", symbol: "▥" }
         ],
-        reward: "FINAL",
+        rewardFragment: "RISES WHEN THE",
         image: "stage-theatre-2.png"
       },
       {
@@ -192,7 +221,7 @@ const ROUTES = {
         description: "A melody moves through the room, present everywhere and held by no one.",
         question: "What fills a room but cannot be held?",
         answer: "MUSIC",
-        reward: "SONG",
+        rewardFragment: "MASK YIELDS TO",
         hint: "You hear it.",
         image: "stage-theatre-3.png"
       },
@@ -202,7 +231,7 @@ const ROUTES = {
         description: "The velvet curtain parts for the final time. The silent audience waits.",
         question: "What does the audience give at the end of a great performance?",
         answer: "APPLAUSE",
-        reward: "RISES",
+        rewardFragment: "THE HEART",
         hint: "Hands make this sound.",
         image: "stage-theatre-4.png"
       }
@@ -224,7 +253,7 @@ let state = loadState();
 let hadAllBadgesAtLoad = ALL_BADGES.every((badge) => state.badges.includes(badge));
 let currentRouteId = null;
 let currentStageIndex = 0;
-let currentWords = [];
+let currentFragments = [];
 let stageSolved = false;
 let activePuzzleCleanup = null;
 let activeScreenCleanup = null;
@@ -330,7 +359,7 @@ function resetCurrentRoute() {
   disposeActivePuzzle();
   currentRouteId = null;
   currentStageIndex = 0;
-  currentWords = [];
+  currentFragments = [];
   stageSolved = false;
   currentLockoutKey = null;
 }
@@ -353,6 +382,26 @@ function stageLockoutKey(routeId, stageIndex) {
 
 function phraseLockoutKey(routeId) {
   return `${routeId}-phrase`;
+}
+
+function earnedFragmentCount() {
+  return currentFragments.filter(Boolean).length;
+}
+
+function shuffleOutOfOrder(items) {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+
+  if (
+    shuffled.length > 1 &&
+    shuffled.every((item, index) => item === items[index])
+  ) {
+    shuffled.push(shuffled.shift());
+  }
+  return shuffled;
 }
 
 function activeLockout(stageKey) {
@@ -378,6 +427,61 @@ function registerFailure(stageKey) {
   state.stageLockouts[stageKey] = lockout;
   saveState();
   return lockout;
+}
+
+function failStage(route, stageIndex) {
+  const lockoutKey = stageLockoutKey(route.id, stageIndex);
+  registerFailure(lockoutKey);
+  renderLockout(route, route.stages[stageIndex]?.title || "Trial", lockoutKey, renderStage);
+}
+
+function getWordleTarget(stage) {
+  return String(stage.target || "QUEST").toUpperCase().replace(/[^A-Z]/g, "") || "QUEST";
+}
+
+function getMemorySettings(stage) {
+  const symbols = Array.isArray(stage.symbols) ? stage.symbols : [];
+  const pairCount = Math.min(
+    Math.max(1, Math.floor(Number(stage.pairCount) || 8)),
+    symbols.length
+  );
+  return {
+    pairCount,
+    timeLimitSeconds: Math.max(10, Math.floor(Number(stage.timeLimitSeconds) || 90)),
+    mismatchLimit: Math.max(0, Math.floor(Number(stage.mismatchLimit) || 10)),
+    symbols: symbols.slice(0, pairCount)
+  };
+}
+
+function getSimonRounds(stage) {
+  const sourceRounds = Array.isArray(stage.rounds) && stage.rounds.length
+    ? stage.rounds
+    : [{ sequence: Array.isArray(stage.sequence) ? stage.sequence : [], replays: stage.replays ?? 1 }];
+  const signalIds = new Set((Array.isArray(stage.signals) ? stage.signals : []).map((signal) => signal.id));
+  const finalRoundIndex = sourceRounds.length - 1;
+
+  return sourceRounds.map((round, index) => {
+    const roundConfig = Array.isArray(round) ? { sequence: round } : round;
+    const fallbackReplays = Array.isArray(stage.replaysPerRound)
+      ? stage.replaysPerRound[index]
+      : stage.replays ?? 1;
+    const replays = Math.max(0, Math.floor(Number(roundConfig.replays ?? fallbackReplays) || 0));
+    const sequence = (Array.isArray(roundConfig.sequence) ? roundConfig.sequence : [])
+      .filter((signalId) => signalIds.has(signalId));
+
+    return {
+      sequence,
+      replays,
+      reverseInput: Boolean(roundConfig.reverseInput || (stage.finalRoundReverse && index === finalRoundIndex))
+    };
+  }).filter((round) => round.sequence.length > 0);
+}
+
+function formatPuzzleSeconds(seconds) {
+  const safeSeconds = Math.max(0, Math.ceil(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
 function formatLockoutTime(milliseconds) {
@@ -559,7 +663,7 @@ function renderLetter() {
         <div class="letter-copy">
           <p>To the traveler whose birthday has turned another page: three relics have been left upon this table, and each remembers a different road.</p>
           <p>Take the map if old paths call to you. Take the book if questions are your compass. Take the mask if music waits behind the curtain.</p>
-          <p>Each road guards four words. Bring them together, speak the phrase they form, and the road will offer its mark.</p>
+          <p>Each road guards four phrase fragments. Gather them all, arrange the full saying, and the road will offer its mark.</p>
         </div>
       </div>
       <div class="screen-heading">
@@ -581,7 +685,7 @@ function startRoute(routeId) {
 
   currentRouteId = routeId;
   currentStageIndex = 0;
-  currentWords = [];
+  currentFragments = [];
   stageSolved = false;
   currentView = "route";
   currentLockoutKey = null;
@@ -608,14 +712,65 @@ function startRoute(routeId) {
   document.querySelector("#choose-another-button").addEventListener("click", renderLetter);
 }
 
-function puzzleInstructionCopy(type) {
-  const instructions = {
-    text: "Enter one answer and submit it. Answers ignore capitalization and extra spaces. A wrong submitted answer triggers this stage's lockout.",
-    wordle: "Find the five-letter word in six attempts. Green runes are correctly placed, amber runes belong elsewhere, and grey runes are absent. A physical keyboard works on desktop.",
-    memory: "Reveal two tiles at a time and reunite every matching pair. Matched tiles remain open until the whole set is complete.",
-    simon: "Play the signal sequence, watch its full order, then repeat each signal. Number keys 1 through 4 also select the four signals."
-  };
-  return instructions[type] || instructions.text;
+function instructionMarkup(rows) {
+  return `
+    <div class="stage-instruction-list">
+      ${rows.map((row) => `
+        <div>
+          <strong>${row.label}</strong>
+          <p>${row.copy}</p>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function puzzleInstructionMarkup(type, stage) {
+  const rewardCopy = "Solving this trial reveals one phrase fragment here, then Continue carries that fragment into the route phrase.";
+  const lockoutCopy = "A failed attempt starts this stage's lockout only. Other routes remain playable while this stage waits.";
+
+  if (type === "wordle") {
+    const targetLength = getWordleTarget(stage).length;
+    return instructionMarkup([
+      { label: "Objective", copy: `Find the ${targetLength}-letter hidden word in six guesses.` },
+      { label: "Controls", copy: "Use the physical keyboard, or open and collapse the Runic Keyboard for on-screen input." },
+      { label: "Failure", copy: "Wrong guesses give tile feedback; the stage fails only after all six guesses are spent without solving." },
+      { label: "Lockout", copy: lockoutCopy },
+      { label: "Reward", copy: rewardCopy }
+    ]);
+  }
+
+  if (type === "memory") {
+    const settings = getMemorySettings(stage);
+    return instructionMarkup([
+      { label: "Objective", copy: `Match all ${settings.pairCount} themed pairs before the timer empties.` },
+      { label: "Controls", copy: "Select two cards at a time with mouse, touch, or keyboard. The timer starts with the first card flip." },
+      { label: "Failure", copy: `The stage fails if ${formatPuzzleSeconds(settings.timeLimitSeconds)} expires or if more than ${settings.mismatchLimit} mismatches are made.` },
+      { label: "Lockout", copy: lockoutCopy },
+      { label: "Reward", copy: rewardCopy }
+    ]);
+  }
+
+  if (type === "simon") {
+    const rounds = getSimonRounds(stage);
+    const maxSignals = Array.isArray(stage.signals) ? stage.signals.length : 0;
+    const replaySummary = rounds.map((round, index) => `R${index + 1}: ${round.replays}`).join(", ");
+    return instructionMarkup([
+      { label: "Objective", copy: `Clear ${rounds.length} sequence rounds using ${maxSignals} themed signals.` },
+      { label: "Controls", copy: `Start each round, use allowed replays (${replaySummary}), then repeat the signal order with buttons or number keys 1-${maxSignals}.` },
+      { label: "Failure", copy: "One wrong signal fails the trial. Opening these instructions or using an allowed replay never counts as a failure." },
+      { label: "Lockout", copy: lockoutCopy },
+      { label: "Reward", copy: rewardCopy }
+    ]);
+  }
+
+  return instructionMarkup([
+    { label: "Objective", copy: "Answer the riddle in the field." },
+    { label: "Controls", copy: "Type your answer and submit it. Capitalization and extra spaces do not matter." },
+    { label: "Failure", copy: "A wrong submitted answer fails this trial." },
+    { label: "Lockout", copy: lockoutCopy },
+    { label: "Reward", copy: rewardCopy }
+  ]);
 }
 
 function bindStageChrome() {
@@ -696,7 +851,7 @@ function renderStage() {
         </div>
         <div class="stage-hud-stats" aria-label="Current quest progress">
           <span>Badges: ${state.badges.length} / 3</span>
-          <span id="stage-fragment-count">Fragments: ${currentWords.length} / 4</span>
+          <span id="stage-fragment-count">Fragments: ${earnedFragmentCount()} / 4</span>
         </div>
         <div class="stage-hud-actions">
           <button class="stage-hud-button" id="stage-instructions-button" type="button" aria-controls="stage-instructions-modal" aria-expanded="false">Instructions</button>
@@ -731,7 +886,7 @@ function renderStage() {
           <button class="stage-drawer-close" type="button" data-stage-modal-close aria-label="Close instructions">×</button>
           <p class="section-label">How this trial works</p>
           <h2 id="stage-instructions-title">Instructions</h2>
-          <p>${puzzleInstructionCopy(puzzleType)}</p>
+          ${puzzleInstructionMarkup(puzzleType, stage)}
           <p>${stage.description}</p>
         </section>
       </div>
@@ -754,23 +909,25 @@ function renderStage() {
   activePuzzleCleanup = renderer(route, stage, currentStageIndex) || null;
 }
 
-function completeStage(routeId, stageIndex, rewardWord) {
+function completeStage(routeId, stageIndex, rewardFragment) {
   const route = ROUTES[routeId];
   const stage = route?.stages[stageIndex];
+  const stageFragment = stage?.rewardFragment;
   if (
     stageSolved ||
     routeId !== currentRouteId ||
     stageIndex !== currentStageIndex ||
     !stage ||
-    stage.reward !== rewardWord
+    !stageFragment ||
+    (rewardFragment && stageFragment !== rewardFragment)
   ) return;
 
   stageSolved = true;
-  if (!currentWords.includes(rewardWord)) currentWords.push(rewardWord);
+  currentFragments[stageIndex] = stageFragment;
   disposeActivePuzzle();
 
   const fragmentCount = document.querySelector("#stage-fragment-count");
-  if (fragmentCount) fragmentCount.textContent = `Fragments: ${currentWords.length} / 4`;
+  if (fragmentCount) fragmentCount.textContent = `Fragments: ${earnedFragmentCount()} / 4`;
 
   const puzzleRoot = document.querySelector("#puzzle-root");
   if (puzzleRoot) {
@@ -782,8 +939,8 @@ function completeStage(routeId, stageIndex, rewardWord) {
 
   document.querySelector("#reward-area").innerHTML = `
     <div class="reward-reveal" role="status">
-      <span>Word unlocked</span>
-      <strong>${rewardWord}</strong>
+      <span>Fragment unlocked</span>
+      <strong>${stageFragment}</strong>
     </div>
     <div class="form-actions">
       <button class="primary-button" id="continue-button" type="button">${stageIndex === 3 ? "Approach the Phrase Gate" : "Continue"}</button>
@@ -822,14 +979,12 @@ function renderTextPuzzle(route, stage, stageIndex) {
     event.preventDefault();
     if (normalizeAnswer(input.value) === normalizeAnswer(stage.answer)) {
       feedback.className = "feedback success";
-      feedback.textContent = "The answer is true. A word appears in the light.";
-      completeStage(route.id, stageIndex, stage.reward);
+      feedback.textContent = "The answer is true. A fragment appears in the light.";
+      completeStage(route.id, stageIndex, stage.rewardFragment);
       return;
     }
 
-    const lockoutKey = stageLockoutKey(route.id, stageIndex);
-    registerFailure(lockoutKey);
-    renderLockout(route, stage.title, lockoutKey, renderStage);
+    failStage(route, stageIndex);
   });
 
   input.addEventListener("keydown", (event) => {
@@ -857,7 +1012,7 @@ function renderTextPuzzle(route, stage, stageIndex) {
 */
 function renderWordlePuzzle(route, stage, stageIndex) {
   const root = document.querySelector("#puzzle-root");
-  const target = stage.target.toUpperCase();
+  const target = getWordleTarget(stage);
   const maxAttempts = 6;
   const keyboardRows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
   let attempt = 0;
@@ -895,10 +1050,10 @@ function renderWordlePuzzle(route, stage, stageIndex) {
         <span><i class="legend-present"></i> wrong place</span>
         <span><i class="legend-absent"></i> not in word</span>
       </div>
-      <div class="wordle-board" role="grid" aria-label="Six guesses for a ${target.length}-letter word">${boardMarkup()}</div>
+      <div class="wordle-board" style="--wordle-length: ${target.length}" role="grid" aria-label="Six guesses for a ${target.length}-letter word">${boardMarkup()}</div>
       <p class="feedback wordle-feedback" id="wordle-feedback" aria-live="polite">Type or use the runic keyboard.</p>
       <div class="wordle-keyboard-toggle-row">
-        <button class="secondary-button wordle-keyboard-toggle" id="wordle-keyboard-toggle" type="button" aria-controls="wordle-keyboard" aria-expanded="${showKeyboardByDefault ? "true" : "false"}">${showKeyboardByDefault ? "Hide Runic Keyboard" : "Show Runic Keyboard"}</button>
+        <button class="secondary-button wordle-keyboard-toggle" id="wordle-keyboard-toggle" type="button" aria-controls="wordle-keyboard" aria-expanded="${showKeyboardByDefault ? "true" : "false"}">${showKeyboardByDefault ? "Collapse Runic Keyboard" : "Show Runic Keyboard"}</button>
       </div>
       <div class="wordle-keyboard" id="wordle-keyboard" ${showKeyboardByDefault ? "" : "hidden"} aria-label="Word puzzle keyboard">${keyboardMarkup()}</div>
       <div class="wordle-retry" id="wordle-retry"></div>
@@ -912,7 +1067,7 @@ function renderWordlePuzzle(route, stage, stageIndex) {
       const willShow = keyboard.hidden;
       keyboard.hidden = !willShow;
       keyboardToggle.setAttribute("aria-expanded", String(willShow));
-      keyboardToggle.textContent = willShow ? "Hide Runic Keyboard" : "Show Runic Keyboard";
+      keyboardToggle.textContent = willShow ? "Collapse Runic Keyboard" : "Show Runic Keyboard";
     });
   }
 
@@ -975,8 +1130,8 @@ function renderWordlePuzzle(route, stage, stageIndex) {
     if (guess === target) {
       finished = true;
       feedback.className = "feedback success wordle-feedback";
-      feedback.textContent = "The forest word is true.";
-      completeStage(route.id, stageIndex, stage.reward);
+      feedback.textContent = "The forest word is true. A fragment warms in your hand.";
+      completeStage(route.id, stageIndex, stage.rewardFragment);
       return;
     }
 
@@ -985,9 +1140,8 @@ function renderWordlePuzzle(route, stage, stageIndex) {
     if (attempt >= maxAttempts) {
       finished = true;
       feedback.className = "feedback error wordle-feedback";
-      feedback.textContent = `The word was ${target}. The trail will let you try again.`;
-      root.querySelector("#wordle-retry").innerHTML = '<button class="secondary-button" id="retry-wordle" type="button">Try Again</button>';
-      root.querySelector("#retry-wordle").addEventListener("click", resetGame);
+      feedback.textContent = `The word was ${target}. The trail closes for now.`;
+      failStage(route, stageIndex);
     } else {
       feedback.className = "feedback wordle-feedback";
       feedback.textContent = `${maxAttempts - attempt} ${maxAttempts - attempt === 1 ? "attempt" : "attempts"} remain.`;
@@ -1037,21 +1191,30 @@ function renderWordlePuzzle(route, stage, stageIndex) {
 */
 function renderMemoryPuzzle(route, stage, stageIndex) {
   const root = document.querySelector("#puzzle-root");
-  const pairCount = window.matchMedia("(max-width: 640px)").matches ? 4 : Math.min(6, stage.symbols.length);
-  const selectedSymbols = stage.symbols.slice(0, pairCount);
-  const cards = shuffleCards(selectedSymbols.flatMap((item) => [
+  const settings = getMemorySettings(stage);
+  const cards = shuffleCards(settings.symbols.flatMap((item) => [
     { ...item, cardId: `${item.id}-a` },
     { ...item, cardId: `${item.id}-b` }
   ]));
   let firstIndex = null;
   let secondIndex = null;
   let matchedPairs = 0;
+  let mismatches = 0;
+  let remainingSeconds = settings.timeLimitSeconds;
+  let timerStarted = false;
+  let failed = false;
   let locked = false;
   let flipTimer = null;
+  let countdownTimer = null;
 
   root.innerHTML = `
-    <p class="puzzle-instructions">Find all ${pairCount} matching pairs. Cards may be selected with the mouse, touch, or keyboard.</p>
-    <div class="memory-grid" style="--memory-columns: ${pairCount <= 4 ? 4 : 4}" aria-label="Memory matching board">
+    <div class="memory-status" aria-label="Memory puzzle status">
+      <span>Time <strong id="memory-time">${formatPuzzleSeconds(remainingSeconds)}</strong></span>
+      <span>Matches <strong id="memory-matches">0 / ${settings.pairCount}</strong></span>
+      <span>Mismatches <strong id="memory-mismatches">0 / ${settings.mismatchLimit}</strong></span>
+    </div>
+    <p class="puzzle-instructions">Find all ${settings.pairCount} matching pairs. The timer starts when the first card turns.</p>
+    <div class="memory-grid" style="--memory-columns: 4" aria-label="Memory matching board">
       ${cards.map((card, index) => `
         <button class="memory-card" type="button" data-memory-index="${index}" aria-label="Hidden card ${index + 1}">
           <span class="memory-card-inner">
@@ -1061,10 +1224,54 @@ function renderMemoryPuzzle(route, stage, stageIndex) {
         </button>
       `).join("")}
     </div>
-    <p class="feedback memory-feedback" id="memory-feedback" aria-live="polite">Pairs found: 0 / ${pairCount}</p>
+    <p class="feedback memory-feedback" id="memory-feedback" aria-live="polite">Choose your first card when ready.</p>
   `;
 
   const buttons = [...root.querySelectorAll("[data-memory-index]")];
+  const timerOutput = root.querySelector("#memory-time");
+  const matchesOutput = root.querySelector("#memory-matches");
+  const mismatchesOutput = root.querySelector("#memory-mismatches");
+  const feedback = root.querySelector("#memory-feedback");
+
+  function updateStatus() {
+    timerOutput.textContent = formatPuzzleSeconds(remainingSeconds);
+    matchesOutput.textContent = `${matchedPairs} / ${settings.pairCount}`;
+    mismatchesOutput.textContent = `${mismatches} / ${settings.mismatchLimit}`;
+  }
+
+  function stopCountdown() {
+    if (countdownTimer) window.clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
+
+  function triggerFailure(message) {
+    if (failed) return;
+    failed = true;
+    locked = true;
+    stopCountdown();
+    if (flipTimer) window.clearTimeout(flipTimer);
+    feedback.className = "feedback error memory-feedback";
+    feedback.textContent = message;
+    failStage(route, stageIndex);
+  }
+
+  function tickCountdown() {
+    remainingSeconds -= 1;
+    updateStatus();
+    if (remainingSeconds <= 0) {
+      remainingSeconds = 0;
+      updateStatus();
+      triggerFailure("The shelf forgets before every pair is found.");
+    }
+  }
+
+  function startCountdown() {
+    if (timerStarted) return;
+    timerStarted = true;
+    feedback.className = "feedback memory-feedback";
+    feedback.textContent = "The timer has started.";
+    countdownTimer = window.setInterval(tickCountdown, 1000);
+  }
 
   function setCardOpen(index, isOpen, isMatched = false) {
     const button = buttons[index];
@@ -1076,7 +1283,8 @@ function renderMemoryPuzzle(route, stage, stageIndex) {
   }
 
   function chooseCard(index) {
-    if (locked || index === firstIndex || buttons[index].classList.contains("is-matched")) return;
+    if (failed || locked || index === firstIndex || buttons[index].classList.contains("is-matched")) return;
+    startCountdown();
     setCardOpen(index, true);
 
     if (firstIndex === null) {
@@ -1086,7 +1294,6 @@ function renderMemoryPuzzle(route, stage, stageIndex) {
 
     secondIndex = index;
     locked = true;
-    const feedback = root.querySelector("#memory-feedback");
 
     if (cards[firstIndex].id === cards[secondIndex].id) {
       setCardOpen(firstIndex, true, true);
@@ -1096,16 +1303,27 @@ function renderMemoryPuzzle(route, stage, stageIndex) {
       secondIndex = null;
       locked = false;
       feedback.className = "feedback success memory-feedback";
-      feedback.textContent = `Pairs found: ${matchedPairs} / ${pairCount}`;
-      if (matchedPairs === pairCount) {
+      feedback.textContent = `Pairs found: ${matchedPairs} / ${settings.pairCount}`;
+      updateStatus();
+      if (matchedPairs === settings.pairCount) {
+        stopCountdown();
         feedback.textContent = "Every pair remembers its place.";
-        completeStage(route.id, stageIndex, stage.reward);
+        completeStage(route.id, stageIndex, stage.rewardFragment);
       }
       return;
     }
 
+    mismatches += 1;
+    updateStatus();
+    if (mismatches > settings.mismatchLimit) {
+      triggerFailure("Too many mismatched pairings wake the lock.");
+      return;
+    }
+
     feedback.className = "feedback memory-feedback";
-    feedback.textContent = "Those symbols do not answer one another. Try again.";
+    feedback.textContent = mismatches === settings.mismatchLimit
+      ? "That mismatch is the last safe one."
+      : "Those symbols do not answer one another. Try again.";
     flipTimer = window.setTimeout(() => {
       setCardOpen(firstIndex, false);
       setCardOpen(secondIndex, false);
@@ -1121,6 +1339,7 @@ function renderMemoryPuzzle(route, stage, stageIndex) {
 
   return () => {
     if (flipTimer) window.clearTimeout(flipTimer);
+    stopCountdown();
   };
 }
 
@@ -1146,15 +1365,32 @@ function shuffleCards(items) {
 function renderSimonPuzzle(route, stage, stageIndex) {
   const root = document.querySelector("#puzzle-root");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const flashDuration = reducedMotion ? 100 : 380;
-  const gapDuration = reducedMotion ? 70 : 180;
+  const rounds = getSimonRounds(stage);
+  const signalCount = Array.isArray(stage.signals) ? stage.signals.length : 0;
+  const playbackBaseMs = Math.max(180, Math.floor(Number(stage.playbackBaseMs) || 420));
+  const playbackStepMs = Math.max(0, Math.floor(Number(stage.playbackStepMs) || 45));
+  const playbackMinMs = Math.max(120, Math.floor(Number(stage.playbackMinMs) || 210));
+  let currentRoundIndex = 0;
   let acceptingInput = false;
   let playerIndex = 0;
+  let hasPlayedRound = false;
+  let playbackActive = false;
+  let replaysUsed = 0;
   let disposed = false;
   const pendingDelays = new Set();
 
+  if (!rounds.length || !signalCount) {
+    root.innerHTML = '<p class="feedback error">This sequence trial is missing its signals.</p>';
+    return null;
+  }
+
   root.innerHTML = `
-    <p class="puzzle-instructions">Play the sequence, then repeat each signal in the same order. Number keys 1–4 also work.</p>
+    <div class="simon-status" aria-label="Sequence puzzle status">
+      <span>Round <strong id="simon-round">1 / ${rounds.length}</strong></span>
+      <span>Steps <strong id="simon-steps">0 / ${rounds[0].sequence.length}</strong></span>
+      <span>Replays <strong id="simon-replays">0 / ${rounds[0].replays}</strong></span>
+    </div>
+    <p class="puzzle-instructions">Play each sequence, then repeat the themed signals. Number keys 1–${signalCount} also work.</p>
     <div class="simon-grid" aria-label="Sequence signals">
       ${stage.signals.map((signal, index) => `
         <button class="simon-signal" type="button" data-signal-id="${signal.id}" data-signal-index="${index}" disabled aria-label="${index + 1}: ${signal.label}">
@@ -1165,16 +1401,55 @@ function renderSimonPuzzle(route, stage, stageIndex) {
       `).join("")}
     </div>
     <div class="form-actions simon-actions">
-      <button class="primary-button" id="play-sequence" type="button">Play Sequence</button>
-      <button class="secondary-button" id="retry-sequence" type="button" hidden>Retry Sequence</button>
+      <button class="primary-button" id="play-sequence" type="button">Start Round</button>
+      <button class="secondary-button" id="replay-sequence" type="button" hidden>Replay Cue</button>
     </div>
-    <p class="feedback simon-feedback" id="simon-feedback" aria-live="polite">The signals are waiting.</p>
+    <p class="feedback simon-feedback" id="simon-feedback" aria-live="polite">Round 1 is waiting.</p>
   `;
 
   const signalButtons = [...root.querySelectorAll("[data-signal-id]")];
   const playButton = root.querySelector("#play-sequence");
-  const retryButton = root.querySelector("#retry-sequence");
+  const replayButton = root.querySelector("#replay-sequence");
+  const roundOutput = root.querySelector("#simon-round");
+  const stepsOutput = root.querySelector("#simon-steps");
+  const replaysOutput = root.querySelector("#simon-replays");
   const feedback = root.querySelector("#simon-feedback");
+
+  function currentRound() {
+    return rounds[currentRoundIndex];
+  }
+
+  function expectedSequence() {
+    const round = currentRound();
+    return round.reverseInput ? [...round.sequence].reverse() : round.sequence;
+  }
+
+  function roundFlashDuration() {
+    const duration = Math.max(playbackMinMs, playbackBaseMs - (currentRoundIndex * playbackStepMs));
+    return reducedMotion ? Math.max(80, Math.round(duration * 0.38)) : duration;
+  }
+
+  function roundGapDuration() {
+    const gap = Math.round(roundFlashDuration() * 0.48);
+    return reducedMotion ? Math.max(45, Math.round(gap * 0.55)) : gap;
+  }
+
+  function updateSimonStatus() {
+    const round = currentRound();
+    roundOutput.textContent = `${currentRoundIndex + 1} / ${rounds.length}`;
+    stepsOutput.textContent = `${playerIndex} / ${expectedSequence().length}`;
+    replaysOutput.textContent = `${replaysUsed} / ${round.replays}`;
+  }
+
+  function updatePlaybackControls() {
+    const round = currentRound();
+    const remainingReplays = Math.max(0, round.replays - replaysUsed);
+    playButton.hidden = hasPlayedRound;
+    playButton.disabled = playbackActive;
+    replayButton.hidden = !hasPlayedRound || round.replays <= 0;
+    replayButton.disabled = playbackActive || remainingReplays <= 0;
+    replayButton.textContent = `Replay Cue (${remainingReplays} left)`;
+  }
 
   function delay(milliseconds) {
     return new Promise((resolve) => {
@@ -1193,7 +1468,7 @@ function renderSimonPuzzle(route, stage, stageIndex) {
     });
   }
 
-  async function flashSignal(signalId) {
+  async function flashSignal(signalId, flashDuration = roundFlashDuration(), gapDuration = roundGapDuration()) {
     const button = root.querySelector(`[data-signal-id="${signalId}"]`);
     if (!button || disposed) return false;
     button.classList.add("is-active");
@@ -1204,67 +1479,103 @@ function renderSimonPuzzle(route, stage, stageIndex) {
     return delay(gapDuration);
   }
 
-  async function playSequence() {
+  async function playCurrentRound({ replay = false } = {}) {
+    const round = currentRound();
+    if (!round || playbackActive || disposed) return;
+    if (replay) {
+      if (!hasPlayedRound || replaysUsed >= round.replays) return;
+      replaysUsed += 1;
+    } else {
+      hasPlayedRound = true;
+      replaysUsed = 0;
+    }
+
     acceptingInput = false;
     playerIndex = 0;
+    playbackActive = true;
     setSignalsEnabled(false);
-    playButton.disabled = true;
-    retryButton.hidden = true;
+    updateSimonStatus();
+    updatePlaybackControls();
     feedback.className = "feedback simon-feedback";
-    feedback.textContent = `Watch carefully: ${stage.sequence.length} signals.`;
+    feedback.textContent = `Watch round ${currentRoundIndex + 1}: ${round.sequence.length} signals.`;
     if (!await delay(reducedMotion ? 120 : 420)) return;
 
-    for (const signalId of stage.sequence) {
+    for (const signalId of round.sequence) {
       if (!await flashSignal(signalId)) return;
     }
 
     if (disposed) return;
+    playbackActive = false;
     acceptingInput = true;
     setSignalsEnabled(true);
-    feedback.textContent = "Your turn. Repeat the full sequence.";
-    signalButtons[0].focus();
+    updateSimonStatus();
+    updatePlaybackControls();
+    feedback.textContent = round.reverseInput
+      ? "Your turn. Repeat this round in reverse."
+      : "Your turn. Repeat this round in order.";
+    signalButtons[0]?.focus();
   }
 
   function failSequence() {
     acceptingInput = false;
     setSignalsEnabled(false);
     feedback.className = "feedback error simon-feedback shake";
-    feedback.textContent = "That signal broke the chain. Replay it and try again.";
-    retryButton.hidden = false;
+    feedback.textContent = "That signal broke the chain.";
     window.setTimeout(() => feedback.classList.remove("shake"), 320);
+    failStage(route, stageIndex);
   }
 
   function chooseSignal(signalId) {
     if (!acceptingInput) return;
-    void flashSignal(signalId);
-    if (signalId !== stage.sequence[playerIndex]) {
+    const expected = expectedSequence();
+    void flashSignal(signalId, Math.max(90, roundFlashDuration() * 0.55), Math.max(40, roundGapDuration() * 0.35));
+    if (signalId !== expected[playerIndex]) {
       failSequence();
       return;
     }
 
     playerIndex += 1;
+    updateSimonStatus();
     feedback.className = "feedback success simon-feedback";
-    feedback.textContent = `${playerIndex} / ${stage.sequence.length} signals remembered.`;
-    if (playerIndex === stage.sequence.length) {
-      acceptingInput = false;
-      setSignalsEnabled(false);
+    feedback.textContent = `${playerIndex} / ${expected.length} signals remembered.`;
+    if (playerIndex !== expected.length) return;
+
+    acceptingInput = false;
+    setSignalsEnabled(false);
+    if (currentRoundIndex === rounds.length - 1) {
       feedback.textContent = "The whole sequence answers you.";
-      completeStage(route.id, stageIndex, stage.reward);
+      completeStage(route.id, stageIndex, stage.rewardFragment);
+      return;
     }
+
+    currentRoundIndex += 1;
+    playerIndex = 0;
+    hasPlayedRound = false;
+    replaysUsed = 0;
+    updateSimonStatus();
+    updatePlaybackControls();
+    feedback.textContent = `Round ${currentRoundIndex} is clear. Round ${currentRoundIndex + 1} is ready.`;
+    playButton.focus();
   }
 
   function handleNumberKey(event) {
-    if (!acceptingInput || !/^[1-4]$/.test(event.key)) return;
+    if (document.querySelector(".stage-modal:not([hidden])")) return;
+    if (event.target?.matches?.("input, textarea, select, [contenteditable='true']")) return;
+    if (!acceptingInput || !/^[1-9]$/.test(event.key)) return;
     const signal = stage.signals[Number(event.key) - 1];
+    if (!signal || Number(event.key) > signalCount) return;
+    event.preventDefault();
     if (signal) chooseSignal(signal.id);
   }
 
   signalButtons.forEach((button) => {
     button.addEventListener("click", () => chooseSignal(button.dataset.signalId));
   });
-  playButton.addEventListener("click", playSequence);
-  retryButton.addEventListener("click", playSequence);
+  playButton.addEventListener("click", () => playCurrentRound());
+  replayButton.addEventListener("click", () => playCurrentRound({ replay: true }));
   document.addEventListener("keydown", handleNumberKey);
+  updateSimonStatus();
+  updatePlaybackControls();
 
   return () => {
     disposed = true;
@@ -1305,14 +1616,18 @@ function renderPhraseGate() {
 
   currentView = "phrase";
   currentLockoutKey = null;
-  const wordTokens = currentWords.map((word) => `<span class="word-token">${word}</span>`).join("");
+  const shuffledFragments = shuffleOutOfOrder(currentFragments.filter(Boolean));
+  const fragmentTokens = shuffledFragments
+    .map((fragment) => `<span class="word-token phrase-fragment-token">${fragment}</span>`)
+    .join("");
   setScreen(`
     <section class="screen parchment phrase-screen route-screen ${routeClass(route.id)}" aria-labelledby="phrase-title">
       <div class="phrase-content">
         <p class="section-label">The phrase gate</p>
-        <h2 id="phrase-title">Four words. One answer.</h2>
-        <p class="lead">The words you recovered are carved into the gate. Speak them as one complete phrase.</p>
-        <div class="word-row" aria-label="Collected words">${wordTokens}</div>
+        <h2 id="phrase-title">Four fragments. One full phrase.</h2>
+        <p class="lead">Each trial gave you a phrase fragment. The fragments below are not shown in final order.</p>
+        <p class="phrase-guidance">Reconstruct the full phrase to claim this road’s badge. A wrong phrase submission locks only this phrase gate.</p>
+        <div class="word-row phrase-fragment-row" aria-label="Shuffled earned phrase fragments">${fragmentTokens}</div>
         <form class="answer-form" id="phrase-form">
           <label class="input-label" for="phrase-answer">Enter the full phrase</label>
           <input class="answer-input" id="phrase-answer" name="phrase" type="text" autocomplete="off" required>
@@ -1488,7 +1803,7 @@ function installDevHelpers() {
       delete state.stageLockouts[stageLockoutKey(route.id, currentStageIndex)];
       saveState();
       if (currentView !== "stage") renderStage();
-      completeStage(route.id, currentStageIndex, stage.reward);
+      completeStage(route.id, currentStageIndex, stage.rewardFragment);
       return true;
     },
     showState() {
@@ -1496,7 +1811,8 @@ function installDevHelpers() {
         ...state,
         currentRouteId,
         currentStageIndex,
-        currentWords,
+        currentFragments,
+        currentWords: currentFragments,
         currentView
       }));
       console.log("Birthday Quest state", snapshot);
