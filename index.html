@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#07110f">
+  <meta name="description" content="The Birthday Quest — a three-road fantasy puzzle journey.">
+  <title>The Birthday Quest</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <button class="brand-button" id="home-button" type="button" aria-label="Return to The Birthday Quest home">
+      <span class="brand-mark" aria-hidden="true">✦</span>
+      <span>The Birthday Quest</span>
+    </button>
+    <button class="text-button reset-button" id="reset-button" type="button">Reset Quest</button>
+  </header>
+
+  <main class="quest-shell" id="quest-shell">
+    <section class="screen-region" id="app" aria-live="polite"></section>
+
+    <aside class="badge-ledger" aria-labelledby="badge-ledger-title">
+      <div class="ledger-heading">
+        <span class="ledger-star" aria-hidden="true">✦</span>
+        <div>
+          <p class="section-label">Your progress</p>
+          <h2 id="badge-ledger-title">Badge Ledger</h2>
+        </div>
+      </div>
+      <p class="badge-count" id="badge-count">Badges found: 0 / 3</p>
+      <div class="badge-list" id="badge-list"></div>
+      <p class="ledger-note" id="ledger-note">Three relics wait. Choose the road that calls first.</p>
+    </aside>
+  </main>
+
+  <footer class="site-footer">
+    <span>Made for one reader, wanderer, and solver.</span>
+    <span>Progress is saved on this device.</span>
+  </footer>
+
+  <noscript>
+    <div class="noscript-message">This quest needs JavaScript enabled to open its roads.</div>
+  </noscript>
+
+  <script src="script.js"></script>
+</body>
+</html>
