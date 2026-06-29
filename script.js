@@ -17,7 +17,7 @@ const ROUTES = {
     finalPhrase: "THE ROAD REMEMBERS YOU",
     intro: "You have chosen The Map. The Ranger’s Road opens before you.",
     theme: "Beyond the last lantern, an old road winds through forests, forgotten campfires, and promises that have outlived their makers.",
-    routeImage: "ranger-route-bg.jpg",
+    routeImage: "ranger-route-bg.png",
     relicImage: "relic-map.png",
     badgeImage: "ranger-badge.png",
     endingTitle: "The Road Knows Your Name",
@@ -76,7 +76,7 @@ const ROUTES = {
     finalPhrase: "WISDOM OPENS HIDDEN DOORS",
     intro: "You have chosen The Book. The Scholar’s Library stirs awake.",
     theme: "Candles bloom between ancient shelves. Every answer moves a hidden mechanism somewhere behind the walls.",
-    routeImage: "library-route-bg.jpg",
+    routeImage: "scholar-route-bg.png",
     relicImage: "relic-book.png",
     badgeImage: "library-badge.png",
     endingTitle: "The Hidden Shelf Opens",
@@ -136,7 +136,7 @@ const ROUTES = {
     finalPhrase: "THE FINAL SONG RISES",
     intro: "You have chosen The Mask. The Phantom’s Theatre draws its curtains.",
     theme: "The chandelier trembles above velvet seats. Somewhere past the curtain, an unseen orchestra waits for its cue.",
-    routeImage: "theatre-route-bg.jpg",
+    routeImage: "theatre-route-bg.png",
     relicImage: "relic-mask.png",
     badgeImage: "theatre-badge.png",
     endingTitle: "The House Rises",
@@ -273,8 +273,8 @@ function normalizeAnswer(value) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function imagePlaceholder(filename, extraClass = "") {
-  return `<div class="image-placeholder ${extraClass}" role="img" aria-label="Image placeholder for ${filename}">Image placeholder:<br>${filename}</div>`;
+function imageAsset(filename, alt, extraClass = "") {
+  return `<img class="quest-image ${extraClass}" src="assets/images/${filename}" alt="${alt}" loading="lazy">`;
 }
 
 function routeClass(routeId) {
@@ -301,7 +301,9 @@ function updateBadgePanel() {
     const earned = state.badges.includes(route.badge);
     return `
       <div class="badge-item ${earned ? "earned" : ""}">
-        <div class="badge-seal" aria-hidden="true">${earned ? route.icon : "◇"}</div>
+        <div class="badge-seal" aria-hidden="true">
+          ${earned ? imageAsset(route.badgeImage, "", "ledger-badge-image") : "◇"}
+        </div>
         <div>
           <strong>${earned ? route.badge : "Undiscovered badge"}</strong>
           <small>${earned ? "Collected" : route.name}</small>
@@ -330,7 +332,7 @@ function renderHome() {
   const secretCard = secretAvailable
     ? `
       <button class="secret-door-card" id="secret-door-button" type="button">
-        ${imagePlaceholder("final-door.png", "light door-placeholder")}
+        ${imageAsset("final-door.png", "A glowing fantasy door surrounded by three awakened seals", "light door-art")}
         <span>
           <strong>A final door has appeared.</strong>
           <span>The three seals answer one another. Enter the door.</span>
@@ -341,6 +343,7 @@ function renderHome() {
 
   setScreen(`
     <section class="screen parchment home-screen" aria-labelledby="home-title">
+      <img class="home-background" src="assets/images/hero-background.png" alt="" aria-hidden="true">
       <div class="home-content">
         <div class="home-sigil" aria-hidden="true">✦</div>
         <h1 id="home-title">The Birthday Quest</h1>
@@ -351,7 +354,6 @@ function renderHome() {
         <p class="home-progress">Badges found: ${state.badges.length} / 3</p>
         ${secretCard}
       </div>
-      <p class="background-file-note">Background placeholder: hero-background.jpg</p>
     </section>
   `);
 
@@ -369,7 +371,7 @@ function renderLetter() {
     const completed = state.completedRoutes.includes(routeId);
     return `
       <button class="relic-card ${routeId}" type="button" data-route-id="${routeId}">
-        ${imagePlaceholder(route.relicImage)}
+        ${imageAsset(route.relicImage, `${route.relic}, the relic for ${route.name}`, "relic-art")}
         <h3>${route.relic}</h3>
         <p>${route.name}</p>
         ${completed ? '<span class="completed-ribbon">Road completed — walk again</span>' : ""}
@@ -380,7 +382,7 @@ function renderLetter() {
   setScreen(`
     <section class="screen parchment content-screen" aria-labelledby="letter-title">
       <div class="letter-layout">
-        ${imagePlaceholder("sealed-letter.png", "light")}
+        ${imageAsset("sealed-letter.png", "An aged parchment letter closed with a wax seal", "light letter-art")}
         <div class="letter-copy">
           <p>To the traveler whose birthday has turned another page: three relics have been left upon this table, and each remembers a different road.</p>
           <p>Take the map if old paths call to you. Take the book if questions are your compass. Take the mask if music waits behind the curtain.</p>
@@ -412,7 +414,7 @@ function startRoute(routeId) {
   setScreen(`
     <section class="screen parchment content-screen route-screen ${routeClass(routeId)}" aria-labelledby="route-title">
       <div class="route-intro-layout">
-        ${imagePlaceholder(route.routeImage, "light route-art")}
+        ${imageAsset(route.routeImage, `${route.name} landscape`, "light route-art")}
         <div class="route-copy">
           <p class="section-label">${route.relic} chosen</p>
           <h2 id="route-title">${route.name}</h2>
@@ -451,7 +453,7 @@ function renderStage() {
         <p class="section-label">${route.name}</p>
         <h2>Trial ${currentStageIndex + 1} of 4</h2>
         <p>${route.theme}</p>
-        ${imagePlaceholder(stage.image)}
+        ${imageAsset(stage.image, `${stage.title} illustration`, "stage-art")}
         <div class="progress-dots" aria-label="Stage ${currentStageIndex + 1} of 4">${dots}</div>
       </div>
       <div class="stage-card">
@@ -1049,8 +1051,8 @@ function renderRouteEnding(routeId) {
   setScreen(`
     <section class="screen parchment content-screen route-screen ${routeClass(route.id)}" aria-labelledby="ending-title">
       <div class="ending-layout">
-        <div class="image-placeholder light ending-art ending-badge" role="img" aria-label="Image placeholder for ${route.badgeImage}">
-          Image placeholder: ${route.badgeImage}
+        <div class="ending-badge">
+          ${imageAsset(route.badgeImage, route.badge, "light ending-art")}
           <span>Badge earned</span>
           <strong>${route.badge}</strong>
         </div>
@@ -1089,8 +1091,8 @@ function renderSecretEnding() {
     <section class="screen parchment content-screen secret-screen" aria-labelledby="secret-title">
       <div class="secret-layout">
         <div class="secret-art-stack">
-          ${imagePlaceholder("final-door.png", "light")}
-          ${imagePlaceholder("secret-badge.png", "light")}
+          ${imageAsset("final-door.png", "The final glowing door at the end of every road", "light final-door-art")}
+          ${imageAsset("secret-badge.png", "The Finder of Every Road badge", "light secret-badge-art")}
         </div>
         <div class="secret-copy">
           <p class="section-label">Every seal is awake</p>

@@ -85,7 +85,7 @@ Simon stages define `signals` and a fixed `sequence`. The game flashes the confi
 
 ## Edit routes and puzzles
 
-All route content lives in the structured `ROUTES` object near the top of `script.js`. Each route defines its relic, route name, badge, final phrase, introduction, ending copy, image placeholders, and four stage objects.
+All route content lives in the structured `ROUTES` object near the top of `script.js`. Each route defines its relic, route name, badge, final phrase, introduction, ending copy, image assets, and four stage objects.
 
 Every stage requires:
 
@@ -95,7 +95,7 @@ Every stage requires:
   title: "Puzzle title",
   description: "Short instructions or story copy.",
   reward: "WORD",
-  image: "placeholder-file.png"
+  image: "stage-illustration.png"
 }
 ```
 
@@ -118,12 +118,11 @@ Keep each route's four reward words in the same order as its `finalPhrase`.
 
 Phrase checking is case-insensitive, trims surrounding whitespace, and collapses multiple spaces.
 
-## Replace placeholder images
+## Image assets
 
-- Image placeholders are created by `imagePlaceholder()` and display the intended filename.
-- Add final files under `assets/images/`.
-- Replace placeholder calls with `<img>` elements using paths such as `assets/images/relic-map.png`.
-- The full image production list is in `assets/images/README.md`.
+- Artwork lives under `assets/images/` and is rendered by `imageAsset()`.
+- Route and stage configuration stores filenames relative to that folder.
+- Use useful alternative text whenever adding a new rendered image.
 
 Use original or properly licensed artwork only. The memory games intentionally use text/CSS symbols rather than source-project character artwork.
 

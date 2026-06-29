@@ -1,8 +1,8 @@
-# Future image list
+# Image asset list
 
-The test build currently uses clearly labeled CSS placeholder blocks. Add original or properly licensed final artwork to this folder using these exact filenames.
+The site uses the original artwork in this folder with these filenames.
 
-1. `hero-background.jpg`  
+1. `hero-background.png`  
    Dark fantasy birthday quest landing background with old parchment, faint stars, and subtle candlelight.
 
 2. `sealed-letter.png`  
@@ -17,13 +17,13 @@ The test build currently uses clearly labeled CSS placeholder blocks. Add origin
 5. `relic-mask.png`  
    Elegant theatre mask relic for the Phantom’s Theatre route.
 
-6. `ranger-route-bg.jpg`  
+6. `ranger-route-bg.png`  
    Forest path, old road, map lines, campfire glow.
 
-7. `library-route-bg.jpg`  
+7. `scholar-route-bg.png`  
    Ancient library shelves, candles, books, warm amber light.
 
-8. `theatre-route-bg.jpg`  
+8. `theatre-route-bg.png`  
    Velvet theatre curtains, stage lights, chandelier, mask motif.
 
 9. `ranger-badge.png`  
@@ -82,5 +82,5 @@ The test build currently uses clearly labeled CSS placeholder blocks. Add origin
 - Keep route illustrations in a consistent visual style and aspect ratio.
 - Prefer transparent PNGs for relics and badges.
 - Prefer wide JPGs for route and hero backgrounds.
-- Add useful `alt` text when replacing placeholders with real `<img>` elements.
+- Add useful `alt` text when introducing new `<img>` elements.
 - Do not use copyrighted images from existing fantasy or theatre franchises.
