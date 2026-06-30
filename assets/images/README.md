@@ -77,6 +77,9 @@ The site uses the original artwork in this folder with these filenames.
 25. `stage-theatre-4.png`  
     Curtain call stage illustration.
 
+26. `ring.png`  
+    Ring pickup and hint image. “Lord of the Rings, the one ring” photo by erik_stein via Good Free Photos, CC0 / Public Domain. Attribution is appreciated but not required. Source: https://www.goodfreephotos.com/other-photos/lord-of-the-rings-the-one-ring.jpg.php
+
 ## Integration notes
 
 - Keep route illustrations in a consistent visual style and aspect ratio.
