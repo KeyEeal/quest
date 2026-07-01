@@ -10,20 +10,30 @@ const STORAGE_KEYS = {
   ringAcquired: "birthdayQuest.ringAcquired",
   ringState: "birthdayQuest.ringState",
   routeProgress: "birthdayQuest.routeProgress",
-  routeLives: "birthdayQuest.routeLives"
+  routeLives: "birthdayQuest.routeLives",
+  timeoutDifficulty: "birthdayQuest.timeoutDifficulty"
 };
 
 const RESET_PASSWORD = "lingling";
-const LOCKOUT_DURATIONS = [
-  30 * 60 * 1000,
-  60 * 60 * 1000,
-  2 * 60 * 60 * 1000,
-  12 * 60 * 60 * 1000
-];
+const TIMEOUT_DIFFICULTIES = ["easy", "hard"];
+const LOCKOUT_DURATIONS = {
+  easy: [
+    1 * 60 * 1000,
+    2 * 60 * 1000,
+    5 * 60 * 1000,
+    30 * 60 * 1000,
+    60 * 60 * 1000
+  ],
+  hard: [
+    30 * 60 * 1000,
+    60 * 60 * 1000,
+    2 * 60 * 60 * 1000,
+    12 * 60 * 60 * 1000
+  ]
+};
 const LOCKOUT_FAILURE_RESET_MS = 12 * 60 * 60 * 1000;
 const RING_MAX_USES = 2;
 const RING_HIDE_DURATION_MS = 60 * 60 * 1000;
-const ROUTE_MAX_LIVES = 3;
 const LOCKOUT_MESSAGES = {
   ranger: "The forest closes around you. Wait for the trail to reveal itself again.",
   scholar: "The candles dim. The shelf refuses another answer for now.",
@@ -128,10 +138,10 @@ const ROUTES = {
         title: "The Signal Fire",
         description: "Watch the old road signals, then repeat their order without breaking the chain.",
         rounds: [
-          { sequence: ["fire", "lantern", "raven"], replays: 2 },
-          { sequence: ["fire", "lantern", "raven", "horn"], replays: 2 },
-          { sequence: ["fire", "lantern", "raven", "horn", "bow", "cloak"], replays: 2 },
-          { sequence: ["fire", "lantern", "raven", "horn", "bow", "cloak", "compass", "star"], replays: 2 }
+          { sequence: ["cloak", "fire", "compass", "raven", "horn"], replays: 2 },
+          { sequence: ["star", "bow", "lantern", "cloak", "horn", "raven"], replays: 2 },
+          { sequence: ["compass", "raven", "fire", "star", "cloak", "bow", "lantern"], replays: 2 },
+          { sequence: ["horn", "cloak", "lantern", "compass", "raven", "fire", "star", "bow"], replays: 2 }
         ],
         signals: [
           { id: "fire", label: "Fire", symbol: "🔥" },
@@ -423,11 +433,11 @@ const ROUTES = {
         title: "The Chandelier Sequence",
         description: "Watch the theatre lights, then repeat their cue from beginning to end.",
         rounds: [
-          { sequence: ["chandelier", "stageLamp", "mask"], replays: 2 },
-          { sequence: ["chandelier", "leftBalcony", "rightBalcony", "stageLamp"], replays: 2 },
-          { sequence: ["mask", "violin", "rose", "curtain", "chandelier"], replays: 2 },
-          { sequence: ["chandelier", "leftBalcony", "rightBalcony", "stageLamp", "mask", "violin"], replays: 1 },
-          { sequence: ["chandelier", "leftBalcony", "rightBalcony", "stageLamp", "mask", "violin", "rose", "curtain"], replays: 1, reverseInput: true }
+          { sequence: ["mask", "chandelier", "rose", "violin", "curtain"], replays: 2 },
+          { sequence: ["stageLamp", "rightBalcony", "mask", "rose", "leftBalcony", "violin"], replays: 2 },
+          { sequence: ["curtain", "violin", "chandelier", "leftBalcony", "rose", "stageLamp", "mask"], replays: 2 },
+          { sequence: ["rightBalcony", "mask", "stageLamp", "curtain", "chandelier", "rose", "violin", "leftBalcony"], replays: 1 },
+          { sequence: ["rose", "curtain", "leftBalcony", "violin", "mask", "rightBalcony", "chandelier", "stageLamp"], replays: 1, reverseInput: true }
         ],
         signals: [
           { id: "chandelier", label: "Chandelier", symbol: "✦" },
@@ -492,6 +502,7 @@ const badgeList = document.querySelector("#badge-list");
 const ledgerNote = document.querySelector("#ledger-note");
 const homeButton = document.querySelector("#home-button");
 const resetButton = document.querySelector("#reset-button");
+const difficultyButton = document.querySelector("#difficulty-button");
 
 let state = loadState();
 let hadAllBadgesAtLoad = ALL_BADGES.every((badge) => state.badges.includes(badge));
@@ -531,6 +542,36 @@ function safeParseObject(key) {
   }
 }
 
+function getTimeoutDifficulty() {
+  const value = localStorage.getItem(STORAGE_KEYS.timeoutDifficulty);
+  return TIMEOUT_DIFFICULTIES.includes(value) ? value : null;
+}
+
+function setTimeoutDifficulty(value) {
+  if (!TIMEOUT_DIFFICULTIES.includes(value)) return false;
+  localStorage.setItem(STORAGE_KEYS.timeoutDifficulty, value);
+  synchronizeRouteLivesForDifficulty();
+  updateDifficultyButtonVisibility();
+  return value;
+}
+
+function clearTimeoutDifficulty() {
+  localStorage.removeItem(STORAGE_KEYS.timeoutDifficulty);
+  updateDifficultyButtonVisibility();
+  return true;
+}
+
+function getLockoutDurationForFailure(failureCount) {
+  const difficulty = getTimeoutDifficulty() || "hard";
+  const ladder = LOCKOUT_DURATIONS[difficulty];
+  const durationIndex = Math.min(Math.max(1, Math.floor(Number(failureCount) || 1)) - 1, ladder.length - 1);
+  return ladder[durationIndex];
+}
+
+function getMaxLivesForDifficulty(difficulty = getTimeoutDifficulty()) {
+  return difficulty === "easy" ? 2 : 3;
+}
+
 function loadStageLockouts() {
   const stored = safeParseObject(STORAGE_KEYS.stageLockouts);
   return Object.fromEntries(Object.entries(stored).flatMap(([stageKey, entry]) => {
@@ -542,19 +583,47 @@ function loadStageLockouts() {
   }));
 }
 
-function emptyRouteLives() {
-  return Object.fromEntries(ROUTE_IDS.map((routeId) => [routeId, ROUTE_MAX_LIVES]));
+function emptyRouteLives(maxLives = getMaxLivesForDifficulty()) {
+  return {
+    maxLives,
+    ...Object.fromEntries(ROUTE_IDS.map((routeId) => [routeId, maxLives]))
+  };
 }
 
 function normalizeRouteLives(value) {
-  const normalized = emptyRouteLives();
+  const storedMaxLives = Math.floor(Number(value?.maxLives));
+  const hasStoredMaxLives = storedMaxLives === 2 || storedMaxLives === 3;
+  const selectedDifficulty = getTimeoutDifficulty();
+  const maxLives = selectedDifficulty
+    ? getMaxLivesForDifficulty(selectedDifficulty)
+    : (hasStoredMaxLives ? storedMaxLives : getMaxLivesForDifficulty());
+  const normalized = emptyRouteLives(maxLives);
   ROUTE_IDS.forEach((routeId) => {
     const storedLives = Math.floor(Number(value?.[routeId]));
     if (Number.isFinite(storedLives)) {
-      normalized[routeId] = Math.min(ROUTE_MAX_LIVES, Math.max(0, storedLives));
+      const livesLost = hasStoredMaxLives ? Math.max(0, storedMaxLives - storedLives) : 0;
+      normalized[routeId] = hasStoredMaxLives
+        ? Math.max(0, maxLives - livesLost)
+        : Math.min(maxLives, Math.max(0, storedLives));
     }
   });
   return normalized;
+}
+
+function synchronizeRouteLivesForDifficulty() {
+  if (!state?.routeLives) return null;
+  state.routeLives = normalizeRouteLives(state.routeLives);
+  localStorage.setItem(STORAGE_KEYS.routeLives, JSON.stringify(state.routeLives));
+  ROUTE_IDS.forEach(updateRouteLivesDisplays);
+  return JSON.parse(JSON.stringify(state.routeLives));
+}
+
+function initializeRouteLivesForDifficulty(difficulty) {
+  const maxLives = getMaxLivesForDifficulty(difficulty);
+  state.routeLives = emptyRouteLives(maxLives);
+  saveState();
+  ROUTE_IDS.forEach(updateRouteLivesDisplays);
+  return JSON.parse(JSON.stringify(state.routeLives));
 }
 
 function emptyRingState() {
@@ -684,35 +753,43 @@ function getRouteLives(routeId) {
   return state.routeLives[routeId];
 }
 
+function getRouteMaxLives() {
+  state.routeLives = normalizeRouteLives(state.routeLives);
+  return state.routeLives.maxLives;
+}
+
 function routeLivesText(routeId) {
-  return `Lives: ${getRouteLives(routeId)} / ${ROUTE_MAX_LIVES}`;
+  return `Lives: ${getRouteLives(routeId)} / ${getRouteMaxLives()}`;
 }
 
 function routeLivesMarkup(routeId, extraClass = "") {
   const lives = getRouteLives(routeId);
-  const hearts = `${"♥".repeat(lives)}${"♡".repeat(ROUTE_MAX_LIVES - lives)}`;
+  const maxLives = getRouteMaxLives();
+  const hearts = `${"♥".repeat(lives)}${"♡".repeat(maxLives - lives)}`;
   return `
     <div class="route-lives-meter ${extraClass}" data-route-lives-route="${routeId}" aria-label="${routeLivesText(routeId)}">
       <span>Route lives</span>
-      <strong data-route-lives-label>${hearts} ${lives} / ${ROUTE_MAX_LIVES}</strong>
+      <strong data-route-lives-label>${hearts} ${lives} / ${maxLives}</strong>
     </div>
   `;
 }
 
 function updateRouteLivesDisplays(routeId) {
   const lives = getRouteLives(routeId);
-  const hearts = `${"♥".repeat(lives)}${"♡".repeat(ROUTE_MAX_LIVES - lives)}`;
+  const maxLives = getRouteMaxLives();
+  const hearts = `${"♥".repeat(lives)}${"♡".repeat(maxLives - lives)}`;
   document.querySelectorAll(`[data-route-lives-route="${routeId}"]`).forEach((meter) => {
     meter.setAttribute("aria-label", routeLivesText(routeId));
     const label = meter.querySelector("[data-route-lives-label]");
-    if (label) label.textContent = `${hearts} ${lives} / ${ROUTE_MAX_LIVES}`;
+    if (label) label.textContent = `${hearts} ${lives} / ${maxLives}`;
   });
 }
 
 function resetRouteAfterTimeout(routeId) {
   if (!ROUTES[routeId]) return false;
   state.routeLives = normalizeRouteLives(state.routeLives);
-  state.routeLives[routeId] = ROUTE_MAX_LIVES;
+  const maxLives = getRouteMaxLives();
+  state.routeLives[routeId] = maxLives;
   const routeState = getRingRouteState(routeId);
   if (routeState) {
     routeState.uses = 0;
@@ -758,7 +835,8 @@ function releaseRingRouteLockout(routeId) {
   routeState.lockedUntil = 0;
   routeState.lastUsedAt = null;
   state.routeLives = normalizeRouteLives(state.routeLives);
-  state.routeLives[routeId] = ROUTE_MAX_LIVES;
+  const maxLives = getRouteMaxLives();
+  state.routeLives[routeId] = maxLives;
   saveState();
   updateRouteLivesDisplays(routeId);
   updateRingDisplays(routeId);
@@ -786,7 +864,8 @@ function registerRingUse(routeId) {
     : 0;
   if (routeState.lockedUntil > usedAt) {
     state.routeLives = normalizeRouteLives(state.routeLives);
-    state.routeLives[routeId] = ROUTE_MAX_LIVES;
+    const maxLives = getRouteMaxLives();
+    state.routeLives[routeId] = maxLives;
   }
   saveState();
   return routeState;
@@ -899,7 +978,7 @@ function renderRingHidingScreen(routeId, ringClue = "") {
           ${answer ? `<div class="ring-hiding-answer"><span>The answer it gave</span><p>${answer}</p></div>` : ""}
           <h1 id="ring-hiding-title">You must go into hiding.</h1>
           <p>Using the Ring has made you more exposed, especially here where power and danger gather. The Ring draws the attention of Sauron and his servants, and Sauron may now sense the wearer.</p>
-          <p>Hide until the corruption decreases. This path alone is sealed for one hour; the other paths remain open. Your three route lives will be restored when the path is safe again.</p>
+          <p>Hide until the corruption decreases. This path alone is sealed for one hour; the other paths remain open. Your ${getRouteMaxLives()} route lives will be restored when the path is safe again.</p>
           <div class="lockout-timer ring-hiding-timer" role="timer" aria-live="polite">
             <span>Safe to return in</span>
             <strong id="ring-hiding-countdown">${formatLockoutTime(lockout.lockedUntil - Date.now())}</strong>
@@ -1082,9 +1161,11 @@ function renderCurrentRouteStep() {
 }
 
 function gateInstructionMarkup() {
+  const maxLives = getRouteMaxLives();
+  const finalLifeWord = maxLives === 2 ? "second" : "third";
   return instructionMarkup([
     { label: "Objective", copy: "Solve the riddle gate to unlock the next main trial." },
-    { label: "Lives", copy: "Each wrong answer costs one of this route's three lives. The third mistake starts this gate's timeout; other routes remain playable." },
+    { label: "Lives", copy: `Each wrong answer costs one of this route's ${maxLives} lives. The ${finalLifeWord} mistake starts this gate's timeout; other routes remain playable.` },
     { label: "Reward", copy: "The gate itself awards no phrase fragment. The main trial after this gate awards the fragment." }
   ]);
 }
@@ -1286,10 +1367,9 @@ function registerFailure(stageKey) {
     ? previous.failures || 0
     : 0;
   const failures = previousFailures + 1;
-  const durationIndex = Math.min(failures - 1, LOCKOUT_DURATIONS.length - 1);
   const lockout = {
     failures,
-    lockedUntil: now + LOCKOUT_DURATIONS[durationIndex],
+    lockedUntil: now + getLockoutDurationForFailure(failures),
     lastFailureAt: now
   };
   state.stageLockouts[stageKey] = lockout;
@@ -1467,7 +1547,7 @@ function renderLockout(route, stageTitle, stageKey, onExpired) {
         <p class="section-label">${route.name}</p>
         <h2 id="lockout-title">${stageTitle}</h2>
         <p class="lead lockout-message">${LOCKOUT_MESSAGES[route.id]}</p>
-        <p class="lockout-reset-note">Your route lives have reset to ${ROUTE_MAX_LIVES} / ${ROUTE_MAX_LIVES}, and this route's Ring corruption has cleared.</p>
+        <p class="lockout-reset-note">Your route lives have reset to ${getRouteMaxLives()} / ${getRouteMaxLives()}, and this route's Ring corruption has cleared.</p>
         <div class="lockout-timer" role="timer" aria-live="polite">
           <span>Trail reopens in</span>
           <strong id="lockout-countdown">${formatLockoutTime(lockout.lockedUntil - Date.now())}</strong>
@@ -1518,7 +1598,13 @@ function setScreen(markup, { immersive = false } = {}) {
   disposeActiveScreen();
   document.body.classList.toggle("immersive-stage-active", immersive);
   app.innerHTML = markup;
+  updateDifficultyButtonVisibility();
   if (!immersive) window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function updateDifficultyButtonVisibility() {
+  if (!difficultyButton) return;
+  difficultyButton.hidden = currentView !== "letter" || !getTimeoutDifficulty();
 }
 
 function badgeItemsMarkup() {
@@ -1584,6 +1670,104 @@ function showRefreshHintPopup() {
   popup.querySelector("#refresh-hint-now-button").focus();
 }
 
+function difficultyLabel(value) {
+  return value === "easy" ? "Easy" : "Hard";
+}
+
+function showDifficultyConfirmation(value) {
+  document.querySelector("#difficulty-confirmation")?.remove();
+  const confirmation = document.createElement("div");
+  confirmation.className = "difficulty-confirmation";
+  confirmation.id = "difficulty-confirmation";
+  confirmation.setAttribute("role", "status");
+  confirmation.setAttribute("aria-live", "polite");
+  confirmation.innerHTML = `
+    <strong>Difficulty changed to ${difficultyLabel(value)}.</strong>
+    <span>Route life limits are now ${getMaxLivesForDifficulty(value)}; lives already lost were preserved.<br>Existing active lockouts have not been changed. Future timeout-triggering failures will use the ${difficultyLabel(value)} timeout ladder.</span>
+  `;
+  document.body.append(confirmation);
+  window.setTimeout(() => confirmation.remove(), 5200);
+}
+
+function showTimeoutDifficultyPopup({ initial = false } = {}) {
+  document.querySelector("#difficulty-popup")?.remove();
+  const currentDifficulty = getTimeoutDifficulty();
+  const popup = document.createElement("div");
+  popup.className = "difficulty-popup";
+  popup.id = "difficulty-popup";
+  popup.innerHTML = `
+    ${initial
+      ? '<div class="difficulty-popup-backdrop" aria-hidden="true"></div>'
+      : '<button class="difficulty-popup-backdrop" type="button" aria-label="Close difficulty window"></button>'}
+    <section class="difficulty-card" role="dialog" aria-modal="true" aria-labelledby="difficulty-title">
+      <p class="section-label">Timeout settings</p>
+      <h2 id="difficulty-title">Choose Your Timeout Difficulty</h2>
+      ${initial ? `
+        <p>Before the roads begin, choose how harsh the lockouts should be.</p>
+        <p>Easy is better for a smoother birthday quest with shorter waiting times.<br>Hard keeps the original punishment system.</p>
+      ` : `
+        <p class="difficulty-current">Current difficulty: <strong>${difficultyLabel(currentDifficulty || "hard")}</strong></p>
+        <div class="difficulty-warning">
+          <strong>Changing difficulty updates future timeout durations and each road's life limit.</strong>
+          <p>It will not remove, shorten, or change any lockouts that are already active.</p>
+          <p>Lives already lost are preserved. Progress, badges, fragments, Ring state, and completed routes are not reset.</p>
+        </div>
+      `}
+      <div class="difficulty-options" aria-label="Timeout difficulty options">
+        <button class="difficulty-option ${currentDifficulty === "easy" ? "is-current" : ""}" type="button" data-timeout-difficulty="easy">
+          <span class="difficulty-option-heading"><strong>Easy</strong>${currentDifficulty === "easy" ? "<small>Current</small>" : ""}</span>
+          ${initial ? `
+            <span>Shorter lockouts</span>
+            <span>Each road has 2 lives</span>
+            <span>Better for smoother play with less waiting</span>
+          ` : `
+            <span>Future lockouts use the Easy timeout ladder:</span>
+            <span>1 minute, 2 minutes, 5 minutes, 30 minutes, then 1 hour</span>
+          `}
+        </button>
+        <button class="difficulty-option ${currentDifficulty === "hard" ? "is-current" : ""}" type="button" data-timeout-difficulty="hard">
+          <span class="difficulty-option-heading"><strong>Hard</strong>${currentDifficulty === "hard" ? "<small>Current</small>" : ""}</span>
+          ${initial ? `
+            <span>Original lockouts</span>
+            <span>Each road has 3 lives</span>
+            <span>Better if you want the quest to feel stricter</span>
+          ` : `
+            <span>Future lockouts use the Hard timeout ladder:</span>
+            <span>30 minutes, 1 hour, 2 hours, then 12 hours</span>
+          `}
+        </button>
+      </div>
+      ${initial ? "" : '<div class="button-row"><button class="secondary-button" id="difficulty-cancel-button" type="button">Keep Current Difficulty</button></div>'}
+    </section>
+  `;
+  document.body.append(popup);
+
+  const closePopup = () => {
+    document.removeEventListener("keydown", handleKeydown);
+    popup.remove();
+  };
+  const handleKeydown = (event) => {
+    if (!initial && event.key === "Escape") closePopup();
+  };
+
+  popup.querySelectorAll("[data-timeout-difficulty]").forEach((option) => {
+    option.addEventListener("click", () => {
+      const value = option.dataset.timeoutDifficulty;
+      if (!setTimeoutDifficulty(value)) return;
+      if (initial) initializeRouteLivesForDifficulty(value);
+      closePopup();
+      if (!initial) showDifficultyConfirmation(value);
+    });
+  });
+
+  if (!initial) {
+    popup.querySelector(".difficulty-popup-backdrop").addEventListener("click", closePopup);
+    popup.querySelector("#difficulty-cancel-button").addEventListener("click", closePopup);
+  }
+  document.addEventListener("keydown", handleKeydown);
+  popup.querySelector("[data-timeout-difficulty]").focus();
+}
+
 function showWelcomePopup() {
   document.querySelector("#welcome-popup")?.remove();
   const popup = document.createElement("div");
@@ -1608,7 +1792,10 @@ function showWelcomePopup() {
   `;
   app.append(popup);
 
-  const closePopup = () => popup.remove();
+  const closePopup = () => {
+    popup.remove();
+    if (!getTimeoutDifficulty()) showTimeoutDifficultyPopup({ initial: true });
+  };
   popup.querySelector(".welcome-popup-backdrop").addEventListener("click", closePopup);
   popup.querySelector("#welcome-begin-button").addEventListener("click", closePopup);
   popup.querySelector("#welcome-begin-button").focus();
@@ -1835,7 +2022,9 @@ function instructionMarkup(rows) {
 
 function puzzleInstructionMarkup(type, stage) {
   const rewardCopy = "Solving this trial reveals one phrase fragment here, then Continue carries that fragment into the route phrase.";
-  const lockoutCopy = "A failed run costs one of this route's three lives. The third route-life loss starts this stage's timeout. The timeout resets all three lives and clears Ring corruption on this route.";
+  const maxLives = getRouteMaxLives();
+  const finalLifeWord = maxLives === 2 ? "second" : "third";
+  const lockoutCopy = `A failed run costs one of this route's ${maxLives} lives. The ${finalLifeWord} route-life loss starts this stage's timeout. The timeout resets all ${maxLives} lives and clears Ring corruption on this route.`;
 
   if (type === "wordle") {
     const targetLength = getWordleTarget(stage).length;
@@ -1863,13 +2052,18 @@ function puzzleInstructionMarkup(type, stage) {
     const rounds = getSimonRounds(stage);
     const maxSignals = Array.isArray(stage.signals) ? stage.signals.length : 0;
     const replaySummary = rounds.map((round, index) => `R${index + 1}: ${round.replays}`).join(", ");
-    return instructionMarkup([
+    const rows = [
       { label: "Objective", copy: `Clear ${rounds.length} sequence rounds using ${maxSignals} themed signals.` },
-      { label: "Controls", copy: `Start each round, use allowed replays (${replaySummary}), then answer with buttons or number keys 1-${maxSignals}. If the final rehearsal changes direction, an omen inside the puzzle will hint at the twist without naming the tiles.` },
-      { label: "Failure", copy: "One wrong signal fails the trial. Opening these instructions or using an allowed replay never counts as a failure." },
+      { label: "Memory", copy: "Watch the full sequence, then repeat it in the exact order. Each round gets longer, and the cues deliberately avoid an obvious visual order." },
+      { label: "Controls", copy: `Start each round, use the limited replays (${replaySummary}), then answer with buttons or number keys 1-${maxSignals}.` },
+      { label: "Failure", copy: `One wrong signal fails the trial and uses the normal route-life and ${difficultyLabel(getTimeoutDifficulty() || "hard")} timeout rules. Opening these instructions or using an allowed replay never counts as a failure.` },
       { label: "Lockout", copy: lockoutCopy },
       { label: "Reward", copy: rewardCopy }
-    ]);
+    ];
+    if (rounds.some((round) => round.reverseInput)) {
+      rows.splice(3, 0, { label: "Final cue", copy: "The final cue must be answered in reverse." });
+    }
+    return instructionMarkup(rows);
   }
 
   if (type === "maze") {
@@ -1961,7 +2155,12 @@ function stageObjectiveSummary(type, stage) {
     const settings = getMemorySettings(stage);
     return `Match ${settings.pairCount} pairs before ${formatPuzzleSeconds(settings.timeLimitSeconds)} expires.`;
   }
-  if (type === "simon") return `Clear ${getSimonRounds(stage).length} signal rounds.`;
+  if (type === "simon") {
+    const rounds = getSimonRounds(stage);
+    const firstLength = rounds[0]?.sequence.length || 0;
+    const finalLength = rounds[rounds.length - 1]?.sequence.length || 0;
+    return `Clear ${rounds.length} signal rounds, growing from ${firstLength} to ${finalLength} cues.`;
+  }
   if (type === "maze") {
     const settings = getMazeSettings(stage);
     return `Collect ${settings.trailMarksRequired} trail marks, then reach the gate.`;
@@ -1985,7 +2184,7 @@ function stageFailureSummary(type, stage) {
     const settings = getMemorySettings(stage);
     return `${formatPuzzleSeconds(settings.timeLimitSeconds)} timer or more than ${settings.mismatchLimit} mismatches.`;
   }
-  if (type === "simon") return "One wrong signal breaks the chain.";
+  if (type === "simon") return "One wrong signal fails the trial and costs one route life.";
   if (type === "maze") return "Third trap hit, or reaching the sealed gate early.";
   if (type === "mastermind") return `Running out of ${getMastermindSettings(stage).maxGuesses} guesses.`;
   if (type === "logic") return "A complete but wrong arrangement.";
@@ -2953,15 +3152,15 @@ function renderSimonPuzzle(route, stage, stageIndex) {
 
   root.innerHTML = `
     <div class="simon-status" aria-label="Sequence puzzle status">
-      <span>Round <strong id="simon-round">1 / ${rounds.length}</strong></span>
-      <span>Steps <strong id="simon-steps">0 / ${rounds[0].sequence.length}</strong></span>
-      <span>Replays <strong id="simon-replays">0 / ${rounds[0].replays}</strong></span>
+      <span><strong id="simon-round">Round 1 of ${rounds.length} — ${rounds[0].sequence.length} cues</strong></span>
+      <span>Progress <strong id="simon-steps">0 / ${rounds[0].sequence.length}</strong></span>
+      <span><strong id="simon-replays">Replays left: ${rounds[0].replays}</strong></span>
     </div>
     <div class="simon-twist-hint" id="simon-twist-hint" role="note" hidden>
       <strong>Final rehearsal</strong>
-      <span>In the Phantom's last cue, beginnings and endings trade places. Watch where the light-show finishes.</span>
+      <span>The final cue must be answered in reverse.</span>
     </div>
-    <p class="puzzle-instructions">Play each sequence, then repeat the themed signals. Number keys 1–${signalCount} also work.</p>
+    <p class="puzzle-instructions">Watch the full sequence, then repeat it exactly. Every round grows longer and avoids an obvious button order. Replays are limited. Number keys 1–${signalCount} also work.</p>
     <div class="simon-grid" aria-label="Sequence signals">
       ${stage.signals.map((signal, index) => `
         <button class="simon-signal" type="button" data-signal-id="${signal.id}" data-signal-index="${index}" disabled aria-label="${index + 1}: ${signal.label}">
@@ -2975,7 +3174,7 @@ function renderSimonPuzzle(route, stage, stageIndex) {
       <button class="primary-button" id="play-sequence" type="button">Start Round</button>
       <button class="secondary-button" id="replay-sequence" type="button" hidden>Replay Cue</button>
     </div>
-    <p class="feedback simon-feedback" id="simon-feedback" aria-live="polite">Round 1 is waiting.</p>
+    <p class="feedback simon-feedback" id="simon-feedback" aria-live="polite">Round 1 is waiting — ${rounds[0].sequence.length} cues.</p>
   `;
 
   const signalButtons = [...root.querySelectorAll("[data-signal-id]")];
@@ -3008,9 +3207,9 @@ function renderSimonPuzzle(route, stage, stageIndex) {
 
   function updateSimonStatus() {
     const round = currentRound();
-    roundOutput.textContent = `${currentRoundIndex + 1} / ${rounds.length}`;
+    roundOutput.textContent = `Round ${currentRoundIndex + 1} of ${rounds.length} — ${round.sequence.length} cues`;
     stepsOutput.textContent = `${playerIndex} / ${expectedSequence().length}`;
-    replaysOutput.textContent = `${replaysUsed} / ${round.replays}`;
+    replaysOutput.textContent = `Replays left: ${Math.max(0, round.replays - replaysUsed)}`;
   }
 
   function updatePlaybackControls() {
@@ -3994,7 +4193,7 @@ function renderPhraseGate() {
         <p class="section-label">The phrase gate</p>
         <h2 id="phrase-title">Four fragments. One full phrase.</h2>
         <p class="lead">Each trial gave you a phrase fragment. The fragments below are not shown in final order.</p>
-        <p class="phrase-guidance">Reconstruct the full phrase to claim this road’s badge. Each wrong submission costs one route life; the third starts this phrase gate's timeout.</p>
+        <p class="phrase-guidance">Reconstruct the full phrase to claim this road’s badge. Each wrong submission costs one route life; the ${getRouteMaxLives() === 2 ? "second" : "third"} starts this phrase gate's timeout.</p>
         ${routeLivesMarkup(route.id, "route-lives-phrase")}
         ${ringMeterMarkup(route.id, "ring-meter-phrase")}
         <div class="word-row phrase-fragment-row" aria-label="Shuffled earned phrase fragments">${fragmentTokens}</div>
@@ -4149,6 +4348,7 @@ function renderSecretEnding() {
 
 homeButton.addEventListener("click", renderHome);
 resetButton.addEventListener("click", resetQuest);
+difficultyButton.addEventListener("click", () => showTimeoutDifficultyPopup({ initial: false }));
 
 function installDevHelpers() {
   if (new URLSearchParams(window.location.search).get("dev") !== "1") {
@@ -4157,6 +4357,18 @@ function installDevHelpers() {
   }
 
   window.BQ_DEV = {
+    setTimeoutDifficulty: (value) => setTimeoutDifficulty(value),
+    getTimeoutDifficulty: () => getTimeoutDifficulty(),
+    clearTimeoutDifficulty: () => clearTimeoutDifficulty(),
+    showRouteLives() {
+      const routeLives = normalizeRouteLives(state.routeLives);
+      const snapshot = {
+        maxLives: routeLives.maxLives,
+        ...Object.fromEntries(ROUTE_IDS.map((routeId) => [routeId, routeLives[routeId]]))
+      };
+      console.log("Birthday Quest route lives", snapshot);
+      return snapshot;
+    },
     clearRingState: () => {
       const snapshot = clearRingState();
       if (currentRouteId) updateRingDisplays(currentRouteId);

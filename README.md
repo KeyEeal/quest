@@ -53,11 +53,14 @@ No build workflow is required.
 - `birthdayQuest.ringAcquired` — whether the one-time Ring pickup has been claimed
 - `birthdayQuest.ringState` — per-route Ring use counts, last-use timestamps, and active one-hour hiding expiry times
 - `birthdayQuest.routeProgress` — solved gates, completed trials, and earned phrase fragments for Ranger, Scholar, and Theatre
-- `birthdayQuest.routeLives` — remaining lives stored independently for Ranger, Scholar, and Theatre
+- `birthdayQuest.routeLives` — remaining lives stored independently for Ranger, Scholar, and Theatre, plus the life cap chosen at the start of this quest
+- `birthdayQuest.timeoutDifficulty` — `easy` or `hard`; controls future gate and trial timeout durations
 
 Each path now resumes from its first unfinished gate or trial after a refresh. The route intro shows a compact saved-progress count, while route endings, badges, lockouts, Ring state, and reset-secret state continue to persist as before.
 
-Each route has three shared lives. A riddle or phrase mistake, or an existing puzzle failure event, costs one life on that route only. The first two life losses allow another attempt without a timeout. The third starts the current gate or trial's normal timeout. When a gate or trial timeout begins, that route is prepared with three fresh lives and zero Ring corruption for its next attempt. The Ring's own hiding timeout also restores the route's lives and clears its corruption when the hour ends. Internal puzzle allowances still work normally: individual Wordle guesses, allowed Memory mismatches, and Mastermind rehearsals do not cost route lives until that puzzle reaches its existing failure condition.
+After the explanation popup, a first-time difficulty choice initializes every route with 2 lives on Easy or 3 lives on Hard. A riddle or phrase mistake, or an existing puzzle failure event, costs one life on that route only. A timeout begins only when that route spends its final life. Easy timeouts escalate through 1 minute, 2 minutes, 5 minutes, 30 minutes, and 1 hour; Hard uses the original 30 minutes, 1 hour, 2 hours, and 12 hours. Severity still cools down after 12 hours without another timeout-triggering failure on that gate or trial. When a timeout begins, that route is prepared with its original life cap and zero Ring corruption for its next attempt. The Ring's own hiding timeout also restores that route to its original life cap. Internal puzzle allowances still work normally: individual Wordle guesses, allowed Memory mismatches, and Mastermind rehearsals do not cost route lives until that puzzle reaches its existing failure condition.
+
+The relic-selection page exposes **Change Difficulty** beside **Reset Quest** after the first choice. Changing it updates future timeout durations and the route-life cap: Easy uses 2 and Hard uses 3. Lives already lost are preserved when the cap changes. Active lockouts, progress, badges, fragments, Ring state, and completed routes remain untouched.
 
 The home screen also includes an **Unlock All Badges** shortcut protected by the quest password. It awards the three route badges without directly unlocking the final door. A refresh-hint popup appears after this shortcut or after the third badge is earned naturally; refreshing then satisfies the existing page-load check and reveals the secret ending.
 
@@ -67,7 +70,7 @@ The secret door is intentionally reload-gated. Earning the third badge shows onl
 
 Use the visible **Reset Quest** button in the site header or on the secret ending. Before the secret ending has been viewed, reset requires the quest password and then asks for confirmation. Viewing the secret ending permanently removes the password requirement for that progress state. A reset clears all Birthday Quest progress and returns to a clean home screen.
 
-For manual testing, add `?dev=1` to the URL to expose `window.BQ_DEV` in the browser console. The helper object can clear lockouts, reset all progress, unlock gates, lock or unlock a specific gate, unlock badges or the secret, complete the current gate or stage, and display the current state or route progress. Ring helpers include `clearRingState()`, `acquireRing()`, `setRingUses(routeId, uses)`, and `showRingState()`. It is not exposed without `?dev=1` and no cheats are shown in the interface.
+For manual testing, add `?dev=1` to the URL to expose `window.BQ_DEV` in the browser console. The helper object can clear lockouts, reset all progress, unlock gates, lock or unlock a specific gate, unlock badges or the secret, complete the current gate or stage, and display the current state or route progress. Difficulty helpers include `setTimeoutDifficulty(value)`, `getTimeoutDifficulty()`, `clearTimeoutDifficulty()`, and `showRouteLives()`. Ring helpers include `clearRingState()`, `acquireRing()`, `setRingUses(routeId, uses)`, and `showRingState()`. It is not exposed without `?dev=1` and no cheats are shown in the interface.
 
 ## Puzzle types
 
@@ -103,7 +106,7 @@ Memory stages define route-themed `symbols`, plus optional `pairCount`, `timeLim
 
 ### Simon-style sequence puzzles
 
-Simon stages define `signals` and configurable `rounds`, each with its own `sequence`, `replays`, and optional `reverseInput`. The game flashes each round, lets the visitor use allowed replays, then compares input one step at a time. Reverse-input finales show a prominent thematic omen before playback and a second hint afterward without revealing tile names or the answer sequence. A failed Simon run costs one route life. Signal buttons also map to number keys, and playback becomes faster on later rounds while still respecting reduced-motion settings.
+Simon stages define `signals` and deterministic route-themed `rounds`, each with its own `sequence`, `replays`, and optional `reverseInput`. Rounds progress through 5, 6, 7, and 8 cues; the Phantom adds a distinct fifth 8-cue reverse-input finale. The non-ordered sequences differ between rounds, replay availability is shown as a remaining count, and one wrong input uses the shared route-life and selected-difficulty timeout system. Signal buttons also map to number keys, and playback becomes faster on later rounds while still respecting reduced-motion settings.
 
 ### Advanced final puzzles
 
