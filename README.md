@@ -53,8 +53,11 @@ No build workflow is required.
 - `birthdayQuest.ringAcquired` — whether the one-time Ring pickup has been claimed
 - `birthdayQuest.ringState` — per-route Ring use counts, last-use timestamps, and active one-hour hiding expiry times
 - `birthdayQuest.routeProgress` — solved gates, completed trials, and earned phrase fragments for Ranger, Scholar, and Theatre
+- `birthdayQuest.routeLives` — remaining lives stored independently for Ranger, Scholar, and Theatre
 
 Each path now resumes from its first unfinished gate or trial after a refresh. The route intro shows a compact saved-progress count, while route endings, badges, lockouts, Ring state, and reset-secret state continue to persist as before.
+
+Each route has three shared lives. A riddle or phrase mistake, or an existing puzzle failure event, costs one life on that route only. The first two life losses allow another attempt without a timeout. The third starts the current gate or trial's normal timeout. When a gate or trial timeout begins, that route is prepared with three fresh lives and zero Ring corruption for its next attempt. The Ring's own hiding timeout also restores the route's lives and clears its corruption when the hour ends. Internal puzzle allowances still work normally: individual Wordle guesses, allowed Memory mismatches, and Mastermind rehearsals do not cost route lives until that puzzle reaches its existing failure condition.
 
 The home screen also includes an **Unlock All Badges** shortcut protected by the quest password. It awards the three route badges without directly unlocking the final door. A refresh-hint popup appears after this shortcut or after the third badge is earned naturally; refreshing then satisfies the existing page-load check and reveals the secret ending.
 
@@ -100,7 +103,7 @@ Memory stages define route-themed `symbols`, plus optional `pairCount`, `timeLim
 
 ### Simon-style sequence puzzles
 
-Simon stages define `signals` and configurable `rounds`, each with its own `sequence`, `replays`, and optional `reverseInput`. The game flashes each round, lets the visitor use allowed replays, then compares input one step at a time. A single wrong signal uses the normal per-stage lockout. Signal buttons also map to number keys, and playback becomes faster on later rounds while still respecting reduced-motion settings.
+Simon stages define `signals` and configurable `rounds`, each with its own `sequence`, `replays`, and optional `reverseInput`. The game flashes each round, lets the visitor use allowed replays, then compares input one step at a time. Reverse-input finales show a prominent thematic omen before playback and a second hint afterward without revealing tile names or the answer sequence. A failed Simon run costs one route life. Signal buttons also map to number keys, and playback becomes faster on later rounds while still respecting reduced-motion settings.
 
 ### Advanced final puzzles
 
@@ -112,7 +115,7 @@ Logic stages define books, keys, shelves, clues, and a single configured solutio
 
 Audio guess stages look for a configured local audio file and show controls only if it loads. No copyrighted soundtrack audio is bundled. If the file is missing, the puzzle falls back to the configured musical cipher answer.
 
-Mastermind stages define selectable cue symbols, a hidden sequence, and a guess limit. Each guess reports exact-position matches and wrong-position matches. Running out of guesses uses the normal per-stage lockout.
+Mastermind stages define selectable cue symbols, a hidden sequence, and a guess limit. The Theatre finale uses a six-cue answer drawn from twelve available cues, leaving six convincing decoys, with eight rehearsals available. Each guess reports exact-position matches and wrong-position matches. Running out of rehearsals costs one route life.
 
 ## Edit routes and puzzles
 

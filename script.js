@@ -9,7 +9,8 @@ const STORAGE_KEYS = {
   resetUnlocked: "birthdayQuest.resetUnlocked",
   ringAcquired: "birthdayQuest.ringAcquired",
   ringState: "birthdayQuest.ringState",
-  routeProgress: "birthdayQuest.routeProgress"
+  routeProgress: "birthdayQuest.routeProgress",
+  routeLives: "birthdayQuest.routeLives"
 };
 
 const RESET_PASSWORD = "lingling";
@@ -22,6 +23,7 @@ const LOCKOUT_DURATIONS = [
 const LOCKOUT_FAILURE_RESET_MS = 12 * 60 * 60 * 1000;
 const RING_MAX_USES = 2;
 const RING_HIDE_DURATION_MS = 60 * 60 * 1000;
+const ROUTE_MAX_LIVES = 3;
 const LOCKOUT_MESSAGES = {
   ranger: "The forest closes around you. Wait for the trail to reveal itself again.",
   scholar: "The candles dim. The shelf refuses another answer for now.",
@@ -448,7 +450,7 @@ const ROUTES = {
         audioSrc: "assets/audio/phantom-placeholder.mp3",
         acceptedAnswers: ["music"],
         fallbackAnswer: "MUSIC",
-        fallbackCipher: "13-21-19-9-3",
+        fallbackCipher: "2-5-14-5-1-20-8 / 20-8-5 / 13-1-19-11 / 20-8-5 / 8-9-4-4-5-14 / 14-15-20-5 / 9-19 / 13-21-19-9-3",
         rewardFragment: "MASK YIELDS TO",
         ringClue: "When the music is absent, treat each number as a letter's position in the alphabet.",
         image: "stage-theatre-3.png"
@@ -456,21 +458,25 @@ const ROUTES = {
       {
         type: "mastermind",
         title: "The Final Cue",
-        description: "The stage manager has hidden the final cue order. Read each rehearsal note and call the sequence before the curtain falls.",
+        description: "The stage manager has hidden a six-part final cue among six convincing decoys. Read each rehearsal note and call the sequence before the curtain falls.",
         symbols: [
+          { id: "spotlight", label: "Spotlight", symbol: "Spotlight" },
           { id: "mask", label: "Mask", symbol: "Mask" },
-          { id: "rose", label: "Rose", symbol: "Rose" },
-          { id: "chandelier", label: "Chandelier", symbol: "Chandelier" },
-          { id: "curtain", label: "Curtain", symbol: "Curtain" },
-          { id: "candle", label: "Candle", symbol: "Candle" },
-          { id: "music", label: "Music", symbol: "Music" },
+          { id: "bell", label: "Bell", symbol: "Bell" },
           { id: "mirror", label: "Mirror", symbol: "Mirror" },
-          { id: "violin", label: "Violin", symbol: "Violin" }
+          { id: "rose", label: "Rose", symbol: "Rose" },
+          { id: "trapdoor", label: "Trapdoor", symbol: "Trapdoor" },
+          { id: "music", label: "Music", symbol: "Music" },
+          { id: "chandelier", label: "Chandelier", symbol: "Chandelier" },
+          { id: "script", label: "Script", symbol: "Script" },
+          { id: "candle", label: "Candle", symbol: "Candle" },
+          { id: "violin", label: "Violin", symbol: "Violin" },
+          { id: "curtain", label: "Curtain", symbol: "Curtain" }
         ],
-        correctSequence: ["mask", "rose", "chandelier", "music", "curtain"],
+        correctSequence: ["mirror", "curtain", "trapdoor", "mask", "violin", "chandelier"],
         maxGuesses: 8,
         rewardFragment: "THE HEART",
-        ringClue: "Keep cues confirmed in the right place, and move only the cues reported as present but misplaced.",
+        ringClue: "Track the total of placed and misplaced cues to identify which six belong before spending guesses on their exact order.",
         image: "stage-theatre-4.png"
       }
     ]
@@ -498,6 +504,7 @@ let activePuzzleCleanup = null;
 let activeScreenCleanup = null;
 let currentView = "home";
 let currentLockoutKey = null;
+let pendingLifeMessage = null;
 
 if (hadAllBadgesAtLoad && !state.secretUnlocked) {
   state.secretUnlocked = true;
@@ -535,6 +542,21 @@ function loadStageLockouts() {
   }));
 }
 
+function emptyRouteLives() {
+  return Object.fromEntries(ROUTE_IDS.map((routeId) => [routeId, ROUTE_MAX_LIVES]));
+}
+
+function normalizeRouteLives(value) {
+  const normalized = emptyRouteLives();
+  ROUTE_IDS.forEach((routeId) => {
+    const storedLives = Math.floor(Number(value?.[routeId]));
+    if (Number.isFinite(storedLives)) {
+      normalized[routeId] = Math.min(ROUTE_MAX_LIVES, Math.max(0, storedLives));
+    }
+  });
+  return normalized;
+}
+
 function emptyRingState() {
   return {
     acquired: false,
@@ -567,6 +589,7 @@ function emptyState() {
     secretUnlocked: false,
     secretViewed: false,
     stageLockouts: {},
+    routeLives: emptyRouteLives(),
     resetUnlocked: false,
     ringAcquired: false,
     ringState: emptyRingState()
@@ -581,6 +604,7 @@ function loadState() {
     secretUnlocked: localStorage.getItem(STORAGE_KEYS.secretUnlocked) === "true",
     secretViewed: localStorage.getItem(STORAGE_KEYS.secretViewed) === "true",
     stageLockouts: loadStageLockouts(),
+    routeLives: normalizeRouteLives(safeParseObject(STORAGE_KEYS.routeLives)),
     resetUnlocked: localStorage.getItem(STORAGE_KEYS.resetUnlocked) === "true"
       || localStorage.getItem(STORAGE_KEYS.secretViewed) === "true",
     ringAcquired,
@@ -594,6 +618,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEYS.secretUnlocked, String(state.secretUnlocked));
   localStorage.setItem(STORAGE_KEYS.secretViewed, String(state.secretViewed));
   localStorage.setItem(STORAGE_KEYS.stageLockouts, JSON.stringify(state.stageLockouts));
+  localStorage.setItem(STORAGE_KEYS.routeLives, JSON.stringify(state.routeLives));
   localStorage.setItem(STORAGE_KEYS.resetUnlocked, String(state.resetUnlocked));
   localStorage.setItem(STORAGE_KEYS.ringAcquired, String(state.ringAcquired));
   localStorage.setItem(STORAGE_KEYS.ringState, JSON.stringify(state.ringState));
@@ -636,6 +661,7 @@ function resetCurrentRoute() {
   currentFragments = [];
   stageSolved = false;
   currentLockoutKey = null;
+  pendingLifeMessage = null;
 }
 
 function normalizeAnswer(value) {
@@ -650,6 +676,53 @@ function getRingRouteState(routeId) {
   if (!ROUTES[routeId]) return null;
   state.ringState = normalizeRingState(state.ringState, state.ringAcquired);
   return state.ringState.routes[routeId];
+}
+
+function getRouteLives(routeId) {
+  if (!ROUTES[routeId]) return 0;
+  state.routeLives = normalizeRouteLives(state.routeLives);
+  return state.routeLives[routeId];
+}
+
+function routeLivesText(routeId) {
+  return `Lives: ${getRouteLives(routeId)} / ${ROUTE_MAX_LIVES}`;
+}
+
+function routeLivesMarkup(routeId, extraClass = "") {
+  const lives = getRouteLives(routeId);
+  const hearts = `${"♥".repeat(lives)}${"♡".repeat(ROUTE_MAX_LIVES - lives)}`;
+  return `
+    <div class="route-lives-meter ${extraClass}" data-route-lives-route="${routeId}" aria-label="${routeLivesText(routeId)}">
+      <span>Route lives</span>
+      <strong data-route-lives-label>${hearts} ${lives} / ${ROUTE_MAX_LIVES}</strong>
+    </div>
+  `;
+}
+
+function updateRouteLivesDisplays(routeId) {
+  const lives = getRouteLives(routeId);
+  const hearts = `${"♥".repeat(lives)}${"♡".repeat(ROUTE_MAX_LIVES - lives)}`;
+  document.querySelectorAll(`[data-route-lives-route="${routeId}"]`).forEach((meter) => {
+    meter.setAttribute("aria-label", routeLivesText(routeId));
+    const label = meter.querySelector("[data-route-lives-label]");
+    if (label) label.textContent = `${hearts} ${lives} / ${ROUTE_MAX_LIVES}`;
+  });
+}
+
+function resetRouteAfterTimeout(routeId) {
+  if (!ROUTES[routeId]) return false;
+  state.routeLives = normalizeRouteLives(state.routeLives);
+  state.routeLives[routeId] = ROUTE_MAX_LIVES;
+  const routeState = getRingRouteState(routeId);
+  if (routeState) {
+    routeState.uses = 0;
+    routeState.lockedUntil = 0;
+    routeState.lastUsedAt = null;
+  }
+  saveState();
+  updateRouteLivesDisplays(routeId);
+  updateRingDisplays(routeId);
+  return true;
 }
 
 function clearRingState() {
@@ -684,7 +757,10 @@ function releaseRingRouteLockout(routeId) {
   routeState.uses = 0;
   routeState.lockedUntil = 0;
   routeState.lastUsedAt = null;
+  state.routeLives = normalizeRouteLives(state.routeLives);
+  state.routeLives[routeId] = ROUTE_MAX_LIVES;
   saveState();
+  updateRouteLivesDisplays(routeId);
   updateRingDisplays(routeId);
   return true;
 }
@@ -708,6 +784,10 @@ function registerRingUse(routeId) {
   routeState.lockedUntil = routeState.uses >= RING_MAX_USES
     ? usedAt + RING_HIDE_DURATION_MS
     : 0;
+  if (routeState.lockedUntil > usedAt) {
+    state.routeLives = normalizeRouteLives(state.routeLives);
+    state.routeLives[routeId] = ROUTE_MAX_LIVES;
+  }
   saveState();
   return routeState;
 }
@@ -819,7 +899,7 @@ function renderRingHidingScreen(routeId, ringClue = "") {
           ${answer ? `<div class="ring-hiding-answer"><span>The answer it gave</span><p>${answer}</p></div>` : ""}
           <h1 id="ring-hiding-title">You must go into hiding.</h1>
           <p>Using the Ring has made you more exposed, especially here where power and danger gather. The Ring draws the attention of Sauron and his servants, and Sauron may now sense the wearer.</p>
-          <p>Hide until the corruption decreases. This path alone is sealed for one hour; the other paths remain open.</p>
+          <p>Hide until the corruption decreases. This path alone is sealed for one hour; the other paths remain open. Your three route lives will be restored when the path is safe again.</p>
           <div class="lockout-timer ring-hiding-timer" role="timer" aria-live="polite">
             <span>Safe to return in</span>
             <strong id="ring-hiding-countdown">${formatLockoutTime(lockout.lockedUntil - Date.now())}</strong>
@@ -1004,7 +1084,7 @@ function renderCurrentRouteStep() {
 function gateInstructionMarkup() {
   return instructionMarkup([
     { label: "Objective", copy: "Solve the riddle gate to unlock the next main trial." },
-    { label: "Lockout", copy: "A wrong answer triggers a gate-specific lockout only. It does not lock the route, the website, or any other route." },
+    { label: "Lives", copy: "Each wrong answer costs one of this route's three lives. The third mistake starts this gate's timeout; other routes remain playable." },
     { label: "Reward", copy: "The gate itself awards no phrase fragment. The main trial after this gate awards the fragment." }
   ]);
 }
@@ -1217,10 +1297,51 @@ function registerFailure(stageKey) {
   return lockout;
 }
 
+function registerRouteMistake(routeId, stageKey) {
+  if (!ROUTES[routeId]) return { timedOut: false, livesRemaining: 0, lockout: null };
+  state.routeLives = normalizeRouteLives(state.routeLives);
+  const livesRemaining = Math.max(0, state.routeLives[routeId] - 1);
+
+  if (livesRemaining > 0) {
+    state.routeLives[routeId] = livesRemaining;
+    saveState();
+    updateRouteLivesDisplays(routeId);
+    return { timedOut: false, livesRemaining, lockout: null };
+  }
+
+  resetRouteAfterTimeout(routeId);
+  const lockout = registerFailure(stageKey);
+  return { timedOut: true, livesRemaining: 0, lockout };
+}
+
+function routeMistakeMessage(livesRemaining) {
+  const lifeWord = livesRemaining === 1 ? "life" : "lives";
+  return `Mistake recorded. ${livesRemaining} route ${lifeWord} remaining before a timeout.`;
+}
+
+function applyPendingLifeMessage(routeId) {
+  if (!pendingLifeMessage || pendingLifeMessage.routeId !== routeId) return;
+  const feedback = document.querySelector("#stage-feedback-zone .feedback, #puzzle-root .feedback");
+  if (feedback) {
+    feedback.className = `${feedback.className} error`.trim();
+    feedback.textContent = pendingLifeMessage.message;
+  }
+  pendingLifeMessage = null;
+}
+
 function failStage(route, stageIndex) {
   const lockoutKey = stageLockoutKey(route.id, stageIndex);
-  registerFailure(lockoutKey);
-  renderLockout(route, route.stages[stageIndex]?.title || "Trial", lockoutKey, renderStage);
+  const mistake = registerRouteMistake(route.id, lockoutKey);
+  if (mistake.timedOut) {
+    renderLockout(route, route.stages[stageIndex]?.title || "Trial", lockoutKey, renderStage);
+    return;
+  }
+
+  pendingLifeMessage = {
+    routeId: route.id,
+    message: routeMistakeMessage(mistake.livesRemaining)
+  };
+  renderStage();
 }
 
 function getWordleTarget(stage) {
@@ -1337,6 +1458,7 @@ function renderLockout(route, stageTitle, stageKey, onExpired) {
     return;
   }
 
+  resetRouteAfterTimeout(route.id);
   currentView = "lockout";
   currentLockoutKey = stageKey;
   setScreen(`
@@ -1345,6 +1467,7 @@ function renderLockout(route, stageTitle, stageKey, onExpired) {
         <p class="section-label">${route.name}</p>
         <h2 id="lockout-title">${stageTitle}</h2>
         <p class="lead lockout-message">${LOCKOUT_MESSAGES[route.id]}</p>
+        <p class="lockout-reset-note">Your route lives have reset to ${ROUTE_MAX_LIVES} / ${ROUTE_MAX_LIVES}, and this route's Ring corruption has cleared.</p>
         <div class="lockout-timer" role="timer" aria-live="polite">
           <span>Trail reopens in</span>
           <strong id="lockout-countdown">${formatLockoutTime(lockout.lockedUntil - Date.now())}</strong>
@@ -1461,6 +1584,36 @@ function showRefreshHintPopup() {
   popup.querySelector("#refresh-hint-now-button").focus();
 }
 
+function showWelcomePopup() {
+  document.querySelector("#welcome-popup")?.remove();
+  const popup = document.createElement("div");
+  popup.className = "welcome-popup";
+  popup.id = "welcome-popup";
+  popup.innerHTML = `
+    <button class="welcome-popup-backdrop" type="button" aria-label="Close welcome message"></button>
+    <section class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+      <p class="section-label">Welcome, traveler</p>
+      <h2 id="welcome-title">Three roads. One birthday quest.</h2>
+      <p>This is a fantasy puzzle adventure made for one very particular birthday traveler.</p>
+      <ol class="welcome-steps">
+        <li>Choose the Ranger, Scholar, or Theatre path.</li>
+        <li>Solve its riddles and trials to earn a badge.</li>
+        <li>Collect all three badges to reveal the final message.</li>
+      </ol>
+      <p class="welcome-note">Your progress is saved on this device, so you can leave and continue later.</p>
+      <div class="button-row">
+        <button class="primary-button" id="welcome-begin-button" type="button">Begin the Quest</button>
+      </div>
+    </section>
+  `;
+  app.append(popup);
+
+  const closePopup = () => popup.remove();
+  popup.querySelector(".welcome-popup-backdrop").addEventListener("click", closePopup);
+  popup.querySelector("#welcome-begin-button").addEventListener("click", closePopup);
+  popup.querySelector("#welcome-begin-button").focus();
+}
+
 function unlockAllBadgesWithPassword() {
   const password = window.prompt("Enter the badge unlock password.");
   if (password === null) return false;
@@ -1547,7 +1700,16 @@ function renderLetter() {
         <div class="letter-copy">
           <p>To the traveler whose birthday has turned another page: three relics have been left upon this table, and each remembers a different road.</p>
           <p>Take the map if old paths call to you. Take the book if questions are your compass. Take the mask if music waits behind the curtain.</p>
+          <p>But be warned: this is not a road for the empty-stomached.</p>
+          <p>A sensible hobbit would have packed breakfast, second breakfast, elevenses, lunch, tea, dinner, and supper before attempting even the first riddle. You have been given no such mercy.</p>
           <p>Each road begins with riddle gates and guards four main-trial phrase fragments. Gather the fragments, arrange the full saying, and the road will offer its mark.</p>
+          <p>The map will not hand its secrets to those who mistake quiet skill for magic. Rangers walk unseen, not because they cast spells, but because they have trained to notice what others miss. Their work is done before danger reaches the kingdom.</p>
+          <p>The book remembers those who wrestle with questions instead of running from them. Some doors open only for patience. Some answers are hidden because they are worth the search.</p>
+          <p>The mask waits where the theatre whispers of a ghost. But not every haunting is a monster, and not every mask tells the whole story. Sometimes the shadow beneath the opera house is only a man who was never truly seen.</p>
+          <p>And somewhere beyond these relics are older roads still: a crown refused before it is accepted, an immortal life surrendered for love, a burden carried farther than strength should allow, and a friendship that keeps walking when the mountain is still far away.</p>
+          <p>Choose carefully.</p>
+          <p>The road you take will test you.</p>
+          <p>The road you finish will remember you.</p>
         </div>
       </div>
       <div class="screen-heading">
@@ -1673,7 +1835,7 @@ function instructionMarkup(rows) {
 
 function puzzleInstructionMarkup(type, stage) {
   const rewardCopy = "Solving this trial reveals one phrase fragment here, then Continue carries that fragment into the route phrase.";
-  const lockoutCopy = "A failed attempt starts this stage's lockout only. Other routes remain playable while this stage waits.";
+  const lockoutCopy = "A failed run costs one of this route's three lives. The third route-life loss starts this stage's timeout. The timeout resets all three lives and clears Ring corruption on this route.";
 
   if (type === "wordle") {
     const targetLength = getWordleTarget(stage).length;
@@ -1703,7 +1865,7 @@ function puzzleInstructionMarkup(type, stage) {
     const replaySummary = rounds.map((round, index) => `R${index + 1}: ${round.replays}`).join(", ");
     return instructionMarkup([
       { label: "Objective", copy: `Clear ${rounds.length} sequence rounds using ${maxSignals} themed signals.` },
-      { label: "Controls", copy: `Start each round, use allowed replays (${replaySummary}), then repeat the signal order with buttons or number keys 1-${maxSignals}.` },
+      { label: "Controls", copy: `Start each round, use allowed replays (${replaySummary}), then answer with buttons or number keys 1-${maxSignals}. If the final rehearsal changes direction, an omen inside the puzzle will hint at the twist without naming the tiles.` },
       { label: "Failure", copy: "One wrong signal fails the trial. Opening these instructions or using an allowed replay never counts as a failure." },
       { label: "Lockout", copy: lockoutCopy },
       { label: "Reward", copy: rewardCopy }
@@ -1755,9 +1917,10 @@ function puzzleInstructionMarkup(type, stage) {
 
   if (type === "mastermind") {
     const settings = getMastermindSettings(stage);
+    const decoyCount = Math.max(0, settings.symbols.length - settings.correctSequence.length);
     return instructionMarkup([
-      { label: "Objective", copy: `Find the ${settings.correctSequence.length}-cue theatre sequence before ${settings.maxGuesses} guesses are used.` },
-      { label: "Controls", copy: "Choose a cue in each slot and submit. Feedback tells how many cues are correct in place and how many belong elsewhere." },
+      { label: "Objective", copy: `Find the ${settings.correctSequence.length}-cue theatre sequence from ${settings.symbols.length} available cues before ${settings.maxGuesses} guesses are used. ${decoyCount} cues do not belong in the answer.` },
+      { label: "Controls", copy: "Choose a different cue in each slot and submit. Feedback tells how many cues are correct in place and how many belong elsewhere; a score of zero also helps eliminate decoys." },
       { label: "Failure", copy: "Running out of guesses fails this trial." },
       { label: "Lockout", copy: lockoutCopy },
       { label: "Reward", copy: rewardCopy }
@@ -2071,6 +2234,7 @@ function renderRiddleGate() {
           <span>Difficulty: ${gate.difficulty}</span>
           <span id="stage-gate-count">Gates: ${completedCount(progress.gatesCompleted)} / 4</span>
           <span>Fragments: ${earnedFragmentCount()} / 4</span>
+          ${routeLivesMarkup(route.id, "route-lives-hud")}
           ${ringMeterMarkup(route.id, "ring-meter-hud")}
         </div>
         <div class="stage-hud-actions">
@@ -2159,8 +2323,15 @@ function renderRiddleGate() {
       if (gateAnswerMatches(gate, input.value)) {
         completeGate(route.id, currentStageIndex);
       } else {
-        registerFailure(lockoutKey);
-        renderLockout(route, gate.title, lockoutKey, renderRiddleGate);
+        const mistake = registerRouteMistake(route.id, lockoutKey);
+        if (mistake.timedOut) {
+          renderLockout(route, gate.title, lockoutKey, renderRiddleGate);
+          return;
+        }
+        const feedback = document.querySelector("#gate-feedback");
+        feedback.className = "feedback error";
+        feedback.textContent = routeMistakeMessage(mistake.livesRemaining);
+        input.select();
       }
     });
     input.focus();
@@ -2212,6 +2383,7 @@ function renderStage() {
           <span>Badges: ${state.badges.length} / 3</span>
           <span>Gates: ${completedCount(progress.gatesCompleted)} / 4</span>
           <span id="stage-fragment-count">Fragments: ${earnedFragmentCount()} / 4</span>
+          ${routeLivesMarkup(route.id, "route-lives-hud")}
           ${ringMeterMarkup(route.id, "ring-meter-hud")}
         </div>
         <div class="stage-hud-actions">
@@ -2287,6 +2459,7 @@ function renderStage() {
   const rendererCleanup = renderer(route, stage, currentStageIndex) || null;
   activePuzzleCleanup = combineCleanups(bindStageSurfaceRelocator(), rendererCleanup);
   bindRingHint(route.id, stage.ringClue);
+  applyPendingLifeMessage(route.id);
 }
 
 function completeStage(routeId, stageIndex, rewardFragment) {
@@ -2784,6 +2957,10 @@ function renderSimonPuzzle(route, stage, stageIndex) {
       <span>Steps <strong id="simon-steps">0 / ${rounds[0].sequence.length}</strong></span>
       <span>Replays <strong id="simon-replays">0 / ${rounds[0].replays}</strong></span>
     </div>
+    <div class="simon-twist-hint" id="simon-twist-hint" role="note" hidden>
+      <strong>Final rehearsal</strong>
+      <span>In the Phantom's last cue, beginnings and endings trade places. Watch where the light-show finishes.</span>
+    </div>
     <p class="puzzle-instructions">Play each sequence, then repeat the themed signals. Number keys 1–${signalCount} also work.</p>
     <div class="simon-grid" aria-label="Sequence signals">
       ${stage.signals.map((signal, index) => `
@@ -2808,6 +2985,7 @@ function renderSimonPuzzle(route, stage, stageIndex) {
   const stepsOutput = root.querySelector("#simon-steps");
   const replaysOutput = root.querySelector("#simon-replays");
   const feedback = root.querySelector("#simon-feedback");
+  const twistHint = root.querySelector("#simon-twist-hint");
 
   function currentRound() {
     return rounds[currentRoundIndex];
@@ -2838,8 +3016,10 @@ function renderSimonPuzzle(route, stage, stageIndex) {
   function updatePlaybackControls() {
     const round = currentRound();
     const remainingReplays = Math.max(0, round.replays - replaysUsed);
+    twistHint.hidden = !round.reverseInput;
     playButton.hidden = hasPlayedRound;
     playButton.disabled = playbackActive;
+    playButton.textContent = round.reverseInput ? "Start Final Rehearsal" : "Start Round";
     replayButton.hidden = !hasPlayedRound || round.replays <= 0;
     replayButton.disabled = playbackActive || remainingReplays <= 0;
     replayButton.textContent = `Replay Cue (${remainingReplays} left)`;
@@ -2891,7 +3071,9 @@ function renderSimonPuzzle(route, stage, stageIndex) {
     updateSimonStatus();
     updatePlaybackControls();
     feedback.className = "feedback simon-feedback";
-    feedback.textContent = `Watch round ${currentRoundIndex + 1}: ${round.sequence.length} signals.`;
+    feedback.textContent = round.reverseInput
+      ? `Watch the final rehearsal: ${round.sequence.length} signals. The ending matters more than usual.`
+      : `Watch round ${currentRoundIndex + 1}: ${round.sequence.length} signals.`;
     if (!await delay(reducedMotion ? 120 : 420)) return;
 
     for (const signalId of round.sequence) {
@@ -2905,7 +3087,7 @@ function renderSimonPuzzle(route, stage, stageIndex) {
     updateSimonStatus();
     updatePlaybackControls();
     feedback.textContent = round.reverseInput
-      ? "Your turn. Repeat this round in reverse."
+      ? "The Phantom's final bow begins where the light-show ended. Let that ending guide each step."
       : "Your turn. Repeat this round in order.";
     signalButtons[0]?.focus();
   }
@@ -2948,7 +3130,9 @@ function renderSimonPuzzle(route, stage, stageIndex) {
     replaysUsed = 0;
     updateSimonStatus();
     updatePlaybackControls();
-    feedback.textContent = `Round ${currentRoundIndex} is clear. Round ${currentRoundIndex + 1} is ready.`;
+    feedback.textContent = currentRound().reverseInput
+      ? `Round ${currentRoundIndex} is clear. The final rehearsal turns the cue upon itself; watch how it ends.`
+      : `Round ${currentRoundIndex} is clear. Round ${currentRoundIndex + 1} is ready.`;
     playButton.focus();
   }
 
@@ -3554,8 +3738,8 @@ function renderAudioGuessPuzzle(route, stage, stageIndex) {
     </div>
     <div class="audio-fallback" id="audio-fallback" hidden>
       <div class="question-block">
-        <p>The stand holds a theatre cipher: <strong>${stage.fallbackCipher || "13-21-19-9-3"}</strong></p>
-        <p>Use A1Z26, where A = 1 and Z = 26, to name the hidden note.</p>
+        <p>The stand holds a theatre cipher: <strong>${stage.fallbackCipher || "2-5-14-5-1-20-8 / 20-8-5 / 13-1-19-11 / 20-8-5 / 8-9-4-4-5-14 / 14-15-20-5 / 9-19 / 13-21-19-9-3"}</strong></p>
+        <p>Use A1Z26, to name the hidden note.</p>
       </div>
     </div>
     <form class="answer-form" id="audio-guess-form">
@@ -3577,7 +3761,7 @@ function renderAudioGuessPuzzle(route, stage, stageIndex) {
   function showFallback() {
     if (disposed || usingAudio) return;
     status.className = "feedback";
-    status.textContent = "No legal audio file is bundled here yet. The musical cipher is active instead.";
+    status.textContent = "The musical cipher is active.";
     fallback.hidden = false;
   }
 
@@ -3691,6 +3875,7 @@ function renderMastermindPuzzle(route, stage, stageIndex) {
     <div class="mastermind-status" aria-label="Mastermind status">
       <span>Guesses <strong id="mastermind-count">0 / ${settings.maxGuesses}</strong></span>
       <span>Slots <strong>${sequenceLength}</strong></span>
+      <span>Cue pool <strong>${settings.symbols.length}</strong></span>
     </div>
     <form class="mastermind-form" id="mastermind-form">
       <div class="mastermind-selects" aria-label="Cue order guess">
@@ -3754,7 +3939,7 @@ function renderMastermindPuzzle(route, stage, stageIndex) {
 
     if (guesses.length >= settings.maxGuesses) {
       feedback.className = "feedback error mastermind-feedback";
-      feedback.textContent = "The eighth rehearsal fails. The curtain falls.";
+      feedback.textContent = `All ${settings.maxGuesses} rehearsals fail. The curtain falls.`;
       failStage(route, stageIndex);
       return;
     }
@@ -3809,7 +3994,8 @@ function renderPhraseGate() {
         <p class="section-label">The phrase gate</p>
         <h2 id="phrase-title">Four fragments. One full phrase.</h2>
         <p class="lead">Each trial gave you a phrase fragment. The fragments below are not shown in final order.</p>
-        <p class="phrase-guidance">Reconstruct the full phrase to claim this road’s badge. A wrong phrase submission locks only this phrase gate.</p>
+        <p class="phrase-guidance">Reconstruct the full phrase to claim this road’s badge. Each wrong submission costs one route life; the third starts this phrase gate's timeout.</p>
+        ${routeLivesMarkup(route.id, "route-lives-phrase")}
         ${ringMeterMarkup(route.id, "ring-meter-phrase")}
         <div class="word-row phrase-fragment-row" aria-label="Shuffled earned phrase fragments">${fragmentTokens}</div>
         <form class="answer-form" id="phrase-form">
@@ -3833,8 +4019,14 @@ function renderPhraseGate() {
     if (value === normalizeAnswer(route.finalPhrase)) {
       completeRoute();
     } else {
-      registerFailure(lockoutKey);
-      renderLockout(route, "The Phrase Gate", lockoutKey, renderPhraseGate);
+      const mistake = registerRouteMistake(route.id, lockoutKey);
+      if (mistake.timedOut) {
+        renderLockout(route, "The Phrase Gate", lockoutKey, renderPhraseGate);
+        return;
+      }
+      feedback.className = "feedback error";
+      feedback.textContent = routeMistakeMessage(mistake.livesRemaining);
+      document.querySelector("#phrase-answer").select();
     }
   });
   bindRingHint(route.id, route.phraseGate?.ringClue);
@@ -3926,9 +4118,7 @@ function renderSecretEnding() {
     "I am grateful for you.",
     "I am proud of you.",
     "And I am very glad you exist.",
-    "Happy birthday.",
-    "P.S. You can now reset the game with the Reset Quest button. And henceforth the password for Reset Quest and Unlock Badges is 'lingling'. . .",
-    "I know. . ."
+    "Happy birthday."
   ];
   setScreen(`
     <section class="screen parchment content-screen secret-screen" aria-labelledby="secret-title">
@@ -4108,4 +4298,5 @@ function installDevHelpers() {
 
 updateBadgePanel();
 renderHome();
+showWelcomePopup();
 installDevHelpers();

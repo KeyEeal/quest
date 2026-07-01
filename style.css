@@ -266,6 +266,40 @@
   transition: border-color var(--transition), background var(--transition), box-shadow var(--transition);
 }
 
+.route-lives-meter {
+  display: grid;
+  gap: 2px;
+  min-width: 112px;
+  padding: 5px 8px;
+  color: #f8e4a7;
+  border: 1px solid rgba(240, 198, 108, 0.3);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.route-lives-meter span {
+  color: inherit;
+  font-size: 0.5rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.route-lives-meter strong {
+  color: #ffdb8a;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.route-lives-phrase {
+  width: min(410px, 100%);
+  margin: 18px auto 8px;
+  color: #f4db9a;
+  background: rgba(28, 20, 11, 0.78);
+}
+
 .ring-meter img {
   grid-row: span 2;
   width: 24px;
@@ -377,7 +411,7 @@
 
 .ring-meter-phrase {
   width: min(410px, 100%);
-  margin: 18px auto;
+  margin: 8px auto 18px;
   color: #f4db9a;
   background: rgba(28, 20, 11, 0.78);
 }
@@ -445,7 +479,8 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .stage-hud-stats .ring-meter {
+  .stage-hud-stats .ring-meter,
+  .stage-hud-stats .route-lives-meter {
     flex: 1 1 100%;
     max-width: 290px;
   }
@@ -910,6 +945,72 @@ input:focus-visible {
 }
 
 .refresh-hint-card .button-row {
+  justify-content: flex-start;
+  margin-top: 24px;
+}
+
+.welcome-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.welcome-popup-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(2, 8, 7, 0.82);
+  backdrop-filter: blur(8px);
+}
+
+.welcome-card {
+  position: relative;
+  width: min(600px, 100%);
+  padding: clamp(24px, 5vw, 42px);
+  color: var(--ink);
+  border: 1px solid rgba(201, 149, 59, 0.72);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(255, 255, 255, 0.72), transparent 18rem),
+    linear-gradient(145deg, #f2dfb5, #d8bc82);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.58);
+}
+
+.welcome-card .section-label {
+  color: var(--gold-dark);
+}
+
+.welcome-card h2 {
+  margin-bottom: 16px;
+  color: #30210f;
+  font-size: clamp(2rem, 7vw, 3.2rem);
+  line-height: 1;
+}
+
+.welcome-card p {
+  color: #4b3b26;
+  line-height: 1.55;
+}
+
+.welcome-steps {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0;
+  padding-left: 24px;
+  color: #3f301d;
+  line-height: 1.45;
+}
+
+.welcome-note {
+  padding-top: 16px;
+  border-top: 1px solid rgba(75, 59, 38, 0.22);
+  font-size: 0.92rem;
+}
+
+.welcome-card .button-row {
   justify-content: flex-start;
   margin-top: 24px;
 }
@@ -2452,6 +2553,37 @@ h3 {
 }
 
 /* Simon-style sequence puzzle */
+.simon-twist-hint[hidden] {
+  display: none;
+}
+
+.simon-twist-hint {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+  padding: 9px 11px;
+  color: #4f321b;
+  border: 1px solid color-mix(in srgb, var(--route-color) 46%, rgba(92, 54, 19, 0.26));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--route-color) 10%, rgba(255, 245, 214, 0.64));
+  box-shadow: inset 0 0 18px color-mix(in srgb, var(--route-color) 7%, transparent);
+}
+
+.simon-twist-hint strong {
+  color: var(--route-color);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.simon-twist-hint span {
+  font-size: 0.82rem;
+  font-style: italic;
+  line-height: 1.35;
+}
+
 .simon-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2779,7 +2911,7 @@ h3 {
 }
 
 .mastermind-status {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .mastermind-form {
@@ -2789,7 +2921,7 @@ h3 {
 
 .mastermind-selects {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -2936,6 +3068,18 @@ h3 {
 .lockout-message {
   max-width: 580px;
   margin-bottom: 24px;
+}
+
+.lockout-reset-note {
+  width: min(520px, 100%);
+  margin: -8px auto 20px;
+  padding: 10px 12px;
+  color: #5d3c12;
+  border: 1px solid rgba(145, 92, 23, 0.3);
+  border-radius: 8px;
+  background: rgba(255, 244, 204, 0.42);
+  font-size: 0.88rem;
+  line-height: 1.45;
 }
 
 .lockout-timer {
@@ -3532,6 +3676,16 @@ h3 {
     gap: 6px;
   }
 
+  .stage-puzzle-panel .simon-twist-hint {
+    grid-template-columns: 1fr;
+    gap: 3px;
+    padding: 7px 9px;
+  }
+
+  .stage-puzzle-panel .simon-twist-hint span {
+    font-size: 0.7rem;
+  }
+
   .stage-puzzle-panel .simon-signal {
     min-height: 52px;
     padding: 8px 6px;
@@ -3580,7 +3734,7 @@ h3 {
   }
 
   .stage-puzzle-panel .mastermind-selects {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .stage-puzzle-panel .mastermind-history-row {
