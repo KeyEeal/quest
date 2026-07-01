@@ -99,6 +99,127 @@
   margin-top: 28px;
 }
 
+.ring-hiding-screen {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  place-items: center;
+  overflow: hidden;
+  padding: clamp(18px, 4dvh, 48px) clamp(18px, 5vw, 72px);
+  color: var(--cream);
+  background-image:
+    linear-gradient(110deg, rgba(2, 7, 6, 0.95), rgba(5, 12, 10, 0.82) 56%, rgba(15, 5, 6, 0.92)),
+    var(--ring-route-background);
+  background-position: center;
+  background-size: cover;
+}
+
+.ring-hiding-screen::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 22% 50%, rgba(141, 50, 42, 0.24), transparent 24rem),
+    radial-gradient(circle at 72% 35%, rgba(240, 198, 108, 0.08), transparent 20rem);
+  pointer-events: none;
+}
+
+.ring-hiding-card {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.62fr) minmax(0, 1.38fr);
+  gap: clamp(24px, 5vw, 70px);
+  align-items: center;
+  width: min(1120px, 100%);
+  max-height: 100%;
+  padding: clamp(22px, 4vw, 54px);
+  border: 1px solid rgba(185, 93, 75, 0.42);
+  border-radius: 20px;
+  background: rgba(3, 9, 8, 0.82);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.58), inset 0 0 60px rgba(91, 24, 24, 0.14);
+  backdrop-filter: blur(16px);
+}
+
+.ring-hiding-art {
+  display: grid;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid rgba(185, 93, 75, 0.35);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(185, 93, 75, 0.2), rgba(0, 0, 0, 0.22) 62%, transparent 64%);
+}
+
+.ring-hiding-art img {
+  width: min(78%, 300px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: grayscale(0.6) brightness(0.68) sepia(0.18);
+  object-fit: cover;
+  box-shadow: 0 0 50px rgba(162, 63, 48, 0.22);
+}
+
+.ring-hiding-copy {
+  min-width: 0;
+  text-shadow: 0 3px 18px rgba(0, 0, 0, 0.72);
+}
+
+.ring-hiding-copy .section-label {
+  color: #d58a78;
+}
+
+.ring-hiding-copy h1 {
+  margin: 0 0 16px;
+  color: #fff0ce;
+  font-size: clamp(2.4rem, 6dvh, 4.8rem);
+  line-height: 0.98;
+}
+
+.ring-hiding-copy > p {
+  max-width: 720px;
+  margin: 0 0 12px;
+  color: rgba(244, 231, 198, 0.86);
+  line-height: 1.55;
+}
+
+.ring-hiding-answer {
+  margin: 0 0 18px;
+  padding: 11px 13px;
+  border-left: 3px solid var(--gold-bright);
+  background: rgba(240, 198, 108, 0.08);
+}
+
+.ring-hiding-answer span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--gold-bright);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.56rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ring-hiding-answer p {
+  margin: 0;
+  color: #fff4d1;
+  line-height: 1.45;
+}
+
+.ring-hiding-timer {
+  width: min(370px, 100%);
+  margin: 20px 0 0;
+  border-color: rgba(185, 93, 75, 0.54);
+  background: rgba(61, 16, 17, 0.42);
+}
+
+.ring-hiding-copy .button-row {
+  justify-content: flex-start;
+  margin-top: 20px;
+}
+
 .stage-hud {
   grid-template-columns: minmax(170px, 0.68fr) minmax(330px, 1fr) minmax(500px, 1.25fr);
 }
@@ -307,6 +428,12 @@
     gap: 28px;
     padding: 28px;
   }
+
+  .ring-hiding-card {
+    grid-template-columns: minmax(160px, 0.48fr) minmax(0, 1.52fr);
+    gap: 24px;
+    padding: 28px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -375,6 +502,54 @@
     font-size: 0.62rem;
   }
 
+  .ring-hiding-screen {
+    padding: 12px;
+  }
+
+  .ring-hiding-card {
+    display: block;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .ring-hiding-art {
+    display: none;
+  }
+
+  .ring-hiding-copy h1 {
+    margin-bottom: 10px;
+    font-size: clamp(2rem, 6dvh, 3rem);
+  }
+
+  .ring-hiding-copy > p {
+    margin-bottom: 8px;
+    font-size: 0.88rem;
+    line-height: 1.4;
+  }
+
+  .ring-hiding-answer {
+    margin-bottom: 12px;
+    text-align: left;
+  }
+
+  .ring-hiding-timer {
+    margin: 12px auto 0;
+  }
+
+  .ring-hiding-copy .button-row {
+    flex-direction: row;
+    justify-content: center;
+    margin-top: 14px;
+  }
+
+  .ring-hiding-copy .primary-button,
+  .ring-hiding-copy .secondary-button {
+    width: auto;
+    min-height: 44px;
+    padding-inline: 12px;
+    font-size: 0.58rem;
+  }
+
   .ring-clue-reveal {
     right: 8px;
     bottom: calc(var(--status-height) + 2px);
@@ -407,6 +582,36 @@
 
   .ring-acquisition-copy .button-row {
     justify-content: flex-start;
+  }
+
+  .ring-hiding-card {
+    padding: 14px 18px;
+    text-align: left;
+  }
+
+  .ring-hiding-copy h1 {
+    font-size: 1.85rem;
+  }
+
+  .ring-hiding-copy > p {
+    font-size: 0.76rem;
+    line-height: 1.32;
+  }
+
+  .ring-hiding-answer {
+    margin-bottom: 8px;
+    padding-block: 7px;
+    font-size: 0.78rem;
+  }
+
+  .ring-hiding-timer {
+    margin-top: 8px;
+    padding: 10px;
+  }
+
+  .ring-hiding-copy .button-row {
+    justify-content: flex-start;
+    margin-top: 8px;
   }
 }
 
@@ -656,6 +861,57 @@ input:focus-visible {
   z-index: 0;
   background: linear-gradient(90deg, rgba(228, 204, 151, 0.9), rgba(239, 222, 180, 0.72) 50%, rgba(214, 179, 111, 0.88));
   pointer-events: none;
+}
+
+.refresh-hint-popup {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.refresh-hint-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(2, 8, 7, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.refresh-hint-card {
+  position: relative;
+  width: min(560px, 100%);
+  padding: clamp(24px, 5vw, 42px);
+  color: var(--ink);
+  border: 1px solid rgba(201, 149, 59, 0.72);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(255, 255, 255, 0.72), transparent 18rem),
+    linear-gradient(145deg, #f2dfb5, #d8bc82);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.58);
+}
+
+.refresh-hint-card .section-label {
+  color: var(--gold-dark);
+}
+
+.refresh-hint-card h2 {
+  margin-bottom: 16px;
+  color: #30210f;
+  font-size: clamp(2rem, 7vw, 3.2rem);
+  line-height: 1;
+}
+
+.refresh-hint-card p {
+  color: #4b3b26;
+  line-height: 1.55;
+}
+
+.refresh-hint-card .button-row {
+  justify-content: flex-start;
+  margin-top: 24px;
 }
 
 .home-background {
@@ -981,6 +1237,31 @@ h3 {
 .secret-copy .button-row {
   justify-content: flex-start;
   margin-top: 28px;
+}
+
+.route-progress-summary {
+  display: grid;
+  gap: 3px;
+  width: fit-content;
+  margin-top: 20px;
+  padding: 10px 13px;
+  border: 1px solid color-mix(in srgb, var(--route-color) 34%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--route-color) 9%, rgba(255, 250, 232, 0.72));
+}
+
+.route-progress-summary span {
+  color: var(--route-color);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.route-progress-summary strong {
+  color: #2f261a;
+  font-size: 0.92rem;
 }
 
 .route-ranger { --route-color: var(--ranger); --route-bright: var(--ranger-bright); }
@@ -2307,7 +2588,7 @@ h3 {
 
 .maze-board {
   display: grid;
-  grid-template-columns: repeat(var(--maze-size), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--maze-width), minmax(0, 1fr));
   width: min(100%, 54dvh, 560px);
   margin-inline: auto;
   overflow: hidden;
@@ -2315,6 +2596,28 @@ h3 {
   border-radius: 8px;
   background: #1b2118;
   box-shadow: inset 0 0 28px rgba(0, 0, 0, 0.28);
+}
+
+.stage-experience.puzzle-maze .stage-puzzle-panel {
+  height: 100%;
+  max-height: none;
+  padding-block: clamp(10px, 1.4dvh, 18px);
+}
+
+.stage-experience.puzzle-maze .puzzle-root {
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
+  gap: clamp(8px, 1.2vw, 16px);
+  align-items: center;
+  align-content: stretch;
+}
+
+.stage-experience.puzzle-maze .maze-board {
+  width: min(100%, clamp(180px, calc(100dvh - var(--hud-height) - var(--status-height) - 130px), 560px));
+}
+
+.stage-experience.puzzle-maze .maze-controls {
+  margin-top: 0;
 }
 
 .maze-cell {
@@ -2704,9 +3007,29 @@ h3 {
     linear-gradient(145deg, #fff8e6, #e8d39e);
 }
 
+.secret-screen .secret-layout {
+  align-items: start;
+}
+
 .secret-art-stack {
+  position: sticky;
+  top: 24px;
   display: grid;
   gap: 14px;
+}
+
+.secret-letter-body {
+  max-width: 780px;
+}
+
+.secret-letter-body p {
+  margin: 0 0 1.15em;
+}
+
+.secret-letter-body p:first-child,
+.secret-letter-body p:nth-last-child(-n + 4) {
+  color: #6a4611;
+  font-weight: 700;
 }
 
 .final-door-art {
@@ -3018,6 +3341,10 @@ h3 {
     border-radius: 18px;
   }
 
+  .stage-experience.puzzle-maze .maze-board {
+    width: min(100%, clamp(150px, calc(100dvh - var(--hud-height) - var(--status-height) - 220px), 440px));
+  }
+
   .stage-status-strip {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-rows: minmax(0, auto) minmax(0, 1fr);
@@ -3222,6 +3549,19 @@ h3 {
     width: min(100%, clamp(150px, calc(100dvh - var(--hud-height) - var(--status-height) - 156px), 310px));
   }
 
+  .stage-experience.puzzle-maze .puzzle-root {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .stage-experience.puzzle-maze .maze-board {
+    width: min(100%, clamp(150px, calc(100dvh - var(--hud-height) - var(--status-height) - 270px), 310px));
+  }
+
+  .stage-experience.puzzle-maze .maze-controls {
+    margin-top: 0;
+  }
+
   .stage-puzzle-panel .maze-cell {
     font-size: 0.54rem;
   }
@@ -3419,6 +3759,10 @@ h3 {
     grid-template-columns: 1fr;
   }
 
+  .secret-art-stack {
+    position: static;
+  }
+
   .letter-layout {
     text-align: center;
   }
@@ -3539,6 +3883,10 @@ h3 {
   .ending-copy .button-row,
   .secret-copy .button-row {
     flex-direction: column;
+  }
+
+  .refresh-hint-card .button-row {
+    align-items: stretch;
   }
 
   .secret-door-card {

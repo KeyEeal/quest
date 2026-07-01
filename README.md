@@ -18,7 +18,7 @@ Every main puzzle resolves through the same `completeStage(routeId, stageIndex, 
 
 The project uses only HTML, CSS, and vanilla JavaScript. It has no backend, database, authentication, package manager, dependencies, or build step.
 
-The first route started also presents a one-time Ring acquisition screen. After the Ring is claimed, its clue control is available on riddle gates, main trials, and phrase gates. Ring use is remembered separately for each road; this version displays warning and corrupted states at one and two uses but does not yet lock a route.
+The first route started also presents a one-time Ring acquisition screen. After the Ring is claimed, its clue control is available on riddle gates, main trials, and phrase gates. Ring use is remembered separately for each road. The second use on the same road reveals the configured clue, then seals only that road for one hour while the wearer hides from Sauron. When the hour expires, that road's Ring corruption resets and its saved route progress resumes; the other two roads remain available throughout.
 
 ## Run locally
 
@@ -51,9 +51,12 @@ No build workflow is required.
 - `birthdayQuest.stageLockouts` — per-stage failure counts, lockout expiry times, and last-failure timestamps
 - `birthdayQuest.resetUnlocked` — whether viewing the secret ending removed the reset password requirement
 - `birthdayQuest.ringAcquired` — whether the one-time Ring pickup has been claimed
-- `birthdayQuest.ringState` — per-route Ring use counts, timestamps, and reserved route-lock timestamps
+- `birthdayQuest.ringState` — per-route Ring use counts, last-use timestamps, and active one-hour hiding expiry times
+- `birthdayQuest.routeProgress` — solved gates, completed trials, and earned phrase fragments for Ranger, Scholar, and Theatre
 
-Individual route gates, route stages, and collected phrase fragments are held only in memory and restart after a refresh. Earned route endings, badges, lockouts, and reset-secret state persist.
+Each path now resumes from its first unfinished gate or trial after a refresh. The route intro shows a compact saved-progress count, while route endings, badges, lockouts, Ring state, and reset-secret state continue to persist as before.
+
+The home screen also includes an **Unlock All Badges** shortcut protected by the quest password. It awards the three route badges without directly unlocking the final door. A refresh-hint popup appears after this shortcut or after the third badge is earned naturally; refreshing then satisfies the existing page-load check and reveals the secret ending.
 
 The secret door is intentionally reload-gated. Earning the third badge shows only the third route ending and the hint that something may change when the world is entered again. On a later page load, the script sees that all three badges were already present, marks the secret as unlocked, and shows the final door on the home screen.
 
@@ -101,7 +104,7 @@ Simon stages define `signals` and configurable `rounds`, each with its own `sequ
 
 ### Advanced final puzzles
 
-Maze stages generate a vanilla JavaScript 15x15 or 18x18 maze, limit visibility with fog of war, place trail marks and traps, and complete only after the required marks are collected and the gate is reached. Trap placement protects and validates at least one safe route through all required marks and then to the gate. Trap hits return the player to the latest checkpoint; the third trap hit, or a premature gate attempt, uses the normal per-stage lockout.
+Maze stages define separate `width` and `height` values. The Ranger maze is 15 columns by 15 rows, limits visibility with fog of war, places trail marks and traps, and completes only after the required marks are collected and the gate is reached. Trap placement protects and validates at least one safe route through all required marks and then to the gate. Trap hits return the player to the latest checkpoint; the third trap hit, or a premature gate attempt, uses the normal per-stage lockout.
 
 Math stages show a configured problem and accepted final answers. The current Scholar calculus trial accepts `224` and `224.0`.
 

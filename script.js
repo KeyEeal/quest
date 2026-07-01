@@ -8,7 +8,8 @@ const STORAGE_KEYS = {
   stageLockouts: "birthdayQuest.stageLockouts",
   resetUnlocked: "birthdayQuest.resetUnlocked",
   ringAcquired: "birthdayQuest.ringAcquired",
-  ringState: "birthdayQuest.ringState"
+  ringState: "birthdayQuest.ringState",
+  routeProgress: "birthdayQuest.routeProgress"
 };
 
 const RESET_PASSWORD = "lingling";
@@ -20,6 +21,7 @@ const LOCKOUT_DURATIONS = [
 ];
 const LOCKOUT_FAILURE_RESET_MS = 12 * 60 * 60 * 1000;
 const RING_MAX_USES = 2;
+const RING_HIDE_DURATION_MS = 60 * 60 * 1000;
 const LOCKOUT_MESSAGES = {
   ranger: "The forest closes around you. Wait for the trail to reveal itself again.",
   scholar: "The candles dim. The shelf refuses another answer for now.",
@@ -148,7 +150,8 @@ const ROUTES = {
         title: "The Hidden Gate",
         difficulty: "very hard",
         description: "A living hedge-maze hides the final gate. Gather three trail marks before the old lock will open.",
-        size: 15,
+        width: 15,
+        height: 15,
         trailMarksRequired: 3,
         trapCount: 12,
         visibilityRadius: 2,
@@ -488,7 +491,7 @@ let state = loadState();
 let hadAllBadgesAtLoad = ALL_BADGES.every((badge) => state.badges.includes(badge));
 let currentRouteId = null;
 let currentStageIndex = 0;
-let routeProgress = {};
+let routeProgress = loadRouteProgress();
 let currentFragments = [];
 let stageSolved = false;
 let activePuzzleCleanup = null;
@@ -594,6 +597,7 @@ function saveState() {
   localStorage.setItem(STORAGE_KEYS.resetUnlocked, String(state.resetUnlocked));
   localStorage.setItem(STORAGE_KEYS.ringAcquired, String(state.ringAcquired));
   localStorage.setItem(STORAGE_KEYS.ringState, JSON.stringify(state.ringState));
+  saveRouteProgress();
 }
 
 function resetQuest() {
@@ -674,10 +678,46 @@ function setRingUses(routeId, uses) {
   return routeState.uses;
 }
 
+function releaseRingRouteLockout(routeId) {
+  const routeState = getRingRouteState(routeId);
+  if (!routeState) return false;
+  routeState.uses = 0;
+  routeState.lockedUntil = 0;
+  routeState.lastUsedAt = null;
+  saveState();
+  updateRingDisplays(routeId);
+  return true;
+}
+
+function activeRingRouteLockout(routeId) {
+  const routeState = getRingRouteState(routeId);
+  if (!routeState) return null;
+  if (routeState.lockedUntil > Date.now()) return routeState;
+  if (routeState.lockedUntil > 0) releaseRingRouteLockout(routeId);
+  return null;
+}
+
+function registerRingUse(routeId) {
+  activeRingRouteLockout(routeId);
+  const routeState = getRingRouteState(routeId);
+  if (!routeState) return null;
+
+  const usedAt = Date.now();
+  if (routeState.uses < RING_MAX_USES) routeState.uses += 1;
+  routeState.lastUsedAt = usedAt;
+  routeState.lockedUntil = routeState.uses >= RING_MAX_USES
+    ? usedAt + RING_HIDE_DURATION_MS
+    : 0;
+  saveState();
+  return routeState;
+}
+
 function ringStatusText(routeId) {
-  const uses = getRingRouteState(routeId)?.uses || 0;
-  if (uses >= 2) return "Ring: 2 / 2 - this road is fully corrupted";
-  if (uses === 1) return "Ring: 1 / 2 - one more use will seal this road";
+  const routeState = getRingRouteState(routeId);
+  const uses = routeState?.uses || 0;
+  if (routeState?.lockedUntil > Date.now()) return "Ring: hiding from Sauron";
+  if (uses >= 2) return "Ring: 2 / 2 - this road is sealed";
+  if (uses === 1) return "Ring: 1 / 2 - one more use forces an hour in hiding";
   return "Ring: 0 / 2";
 }
 
@@ -722,27 +762,103 @@ function bindRingHint(routeId, ringClue) {
 
   button.addEventListener("click", () => {
     if (button.disabled) return;
-    const routeState = getRingRouteState(routeId);
+    const routeState = registerRingUse(routeId);
     if (!routeState) return;
 
-    if (routeState.uses < RING_MAX_USES) routeState.uses += 1;
-    routeState.lockedUntil = 0;
-    routeState.lastUsedAt = Date.now();
-    saveState();
     updateRingDisplays(routeId);
     button.disabled = true;
     button.setAttribute("aria-pressed", "true");
 
-    const warning = routeState.uses === 1
-      ? "The Ring answers. One more use on this road will seal it in a future update."
-      : "This road is fully corrupted. Route lockout is not active yet.";
+    if (routeState.lockedUntil > Date.now()) {
+      renderRingHidingScreen(routeId, ringClue);
+      return;
+    }
+
     clueArea.hidden = false;
     clueArea.innerHTML = `
       <span>Ring clue</span>
       <p>${ringClue}</p>
-      <small>${warning}</small>
+      <small>The Ring answers, but Sauron may sense the wearer. One more use on this path will force you into hiding for one hour.</small>
     `;
   });
+}
+
+function ringClueForCurrentStep(routeId) {
+  const route = ROUTES[routeId];
+  const step = nextRouteStep(routeId);
+  if (!route || !step) return "";
+  if (step.type === "gate") return route.gates?.[step.index]?.ringClue || "";
+  if (step.type === "stage") return route.stages?.[step.index]?.ringClue || "";
+  return route.phraseGate?.ringClue || "";
+}
+
+function renderRingHidingScreen(routeId, ringClue = "") {
+  const route = ROUTES[routeId];
+  const lockout = activeRingRouteLockout(routeId);
+  if (!route) {
+    renderHome();
+    return;
+  }
+  if (!lockout) {
+    startRoute(routeId);
+    return;
+  }
+
+  const answer = ringClue || ringClueForCurrentStep(routeId);
+  currentRouteId = routeId;
+  currentView = "ring-hiding";
+  currentLockoutKey = `${routeId}-ring`;
+  setScreen(`
+    <section class="screen ring-hiding-screen route-screen ${routeClass(route.id)}" style="--ring-route-background: url('assets/images/${route.routeImage}');" aria-labelledby="ring-hiding-title">
+      <div class="ring-hiding-card">
+        <div class="ring-hiding-art" aria-hidden="true">
+          <img src="assets/images/ring.png" alt="">
+        </div>
+        <div class="ring-hiding-copy">
+          <p class="section-label">The Ring answers</p>
+          ${answer ? `<div class="ring-hiding-answer"><span>The answer it gave</span><p>${answer}</p></div>` : ""}
+          <h1 id="ring-hiding-title">You must go into hiding.</h1>
+          <p>Using the Ring has made you more exposed, especially here where power and danger gather. The Ring draws the attention of Sauron and his servants, and Sauron may now sense the wearer.</p>
+          <p>Hide until the corruption decreases. This path alone is sealed for one hour; the other paths remain open.</p>
+          <div class="lockout-timer ring-hiding-timer" role="timer" aria-live="polite">
+            <span>Safe to return in</span>
+            <strong id="ring-hiding-countdown">${formatLockoutTime(lockout.lockedUntil - Date.now())}</strong>
+          </div>
+          <div class="button-row">
+            <button class="primary-button" id="ring-hiding-home-button" type="button">Return Home</button>
+            <button class="secondary-button" id="ring-hiding-routes-button" type="button">Choose Another Relic</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  `, { immersive: true });
+
+  const countdown = document.querySelector("#ring-hiding-countdown");
+  let countdownTimer = null;
+  const updateCountdown = () => {
+    const remaining = lockout.lockedUntil - Date.now();
+    if (remaining > 0) {
+      countdown.textContent = formatLockoutTime(remaining);
+      return;
+    }
+
+    window.clearInterval(countdownTimer);
+    activeScreenCleanup = null;
+    currentLockoutKey = null;
+    releaseRingRouteLockout(routeId);
+    startRoute(routeId);
+  };
+
+  countdownTimer = window.setInterval(updateCountdown, 1000);
+  activeScreenCleanup = () => window.clearInterval(countdownTimer);
+  document.querySelector("#ring-hiding-home-button").addEventListener("click", renderHome);
+  document.querySelector("#ring-hiding-routes-button").addEventListener("click", renderLetter);
+}
+
+function showRingHidingScreenIfLocked(routeId, ringClue = "") {
+  if (!activeRingRouteLockout(routeId)) return false;
+  renderRingHidingScreen(routeId, ringClue);
+  return true;
 }
 
 function routeClass(routeId) {
@@ -781,20 +897,52 @@ function createRouteProgressEntry(route) {
   };
 }
 
+function normalizeRouteProgressEntry(route, value) {
+  const progress = value && typeof value === "object"
+    ? value
+    : createRouteProgressEntry(route);
+  const stageCount = route?.stages?.length || 4;
+  const gateCount = route?.gates?.length || stageCount;
+  const storedStages = Array.isArray(progress.stagesCompleted) ? [...progress.stagesCompleted] : [];
+  const storedGates = Array.isArray(progress.gatesCompleted) ? [...progress.gatesCompleted] : [];
+  const stagesCompleted = normalizeProgressArray(storedStages, stageCount);
+
+  return {
+    gatesCompleted: normalizeProgressArray(storedGates, gateCount),
+    stagesCompleted,
+    fragments: Array.from({ length: stageCount }, (_, index) => (
+      stagesCompleted[index] ? route.stages[index].rewardFragment : null
+    ))
+  };
+}
+
+function loadRouteProgress() {
+  const stored = safeParseObject(STORAGE_KEYS.routeProgress);
+  return Object.fromEntries(ROUTE_IDS.flatMap((routeId) => {
+    const entry = stored[routeId];
+    if (!entry || typeof entry !== "object") return [];
+    return [[routeId, normalizeRouteProgressEntry(ROUTES[routeId], entry)]];
+  }));
+}
+
+function saveRouteProgress() {
+  localStorage.setItem(STORAGE_KEYS.routeProgress, JSON.stringify(routeProgress));
+}
+
+function updateRouteProgress(routeId, updater) {
+  const progress = getRouteProgress(routeId);
+  if (!progress || typeof updater !== "function") return progress;
+  updater(progress);
+  routeProgress[routeId] = normalizeRouteProgressEntry(ROUTES[routeId], progress);
+  saveRouteProgress();
+  return routeProgress[routeId];
+}
+
 function getRouteProgress(routeId) {
   const route = ROUTES[routeId];
   if (!route) return null;
 
-  const progress = routeProgress[routeId] || createRouteProgressEntry(route);
-  const stageCount = route.stages.length;
-  const gateCount = route.gates?.length || stageCount;
-  progress.gatesCompleted = normalizeProgressArray(progress.gatesCompleted, gateCount);
-  progress.stagesCompleted = normalizeProgressArray(progress.stagesCompleted, stageCount);
-  progress.fragments = Array.isArray(progress.fragments) ? progress.fragments : [];
-  for (let index = 0; index < stageCount; index += 1) {
-    progress.fragments[index] = progress.fragments[index] || null;
-  }
-  progress.fragments.length = stageCount;
+  const progress = normalizeRouteProgressEntry(route, routeProgress[routeId]);
   routeProgress[routeId] = progress;
   return progress;
 }
@@ -803,6 +951,7 @@ function resetRouteProgress(routeId) {
   const route = ROUTES[routeId];
   if (!route) return null;
   routeProgress[routeId] = createRouteProgressEntry(route);
+  saveRouteProgress();
   return routeProgress[routeId];
 }
 
@@ -839,6 +988,7 @@ function nextRouteStep(routeId) {
 }
 
 function renderCurrentRouteStep() {
+  if (showRingHidingScreenIfLocked(currentRouteId)) return;
   const step = nextRouteStep(currentRouteId);
   if (!step) {
     renderHome();
@@ -1117,11 +1267,14 @@ function getSimonRounds(stage) {
 
 function getMazeSettings(stage) {
   const configuredSize = Math.floor(Number(stage.size) || 15);
-  const size = configuredSize >= 18 ? 18 : 15;
+  const legacySize = configuredSize >= 18 ? 18 : 15;
+  const width = Math.min(18, Math.max(9, Math.floor(Number(stage.width) || legacySize)));
+  const height = Math.min(18, Math.max(9, Math.floor(Number(stage.height) || legacySize)));
   return {
-    size,
+    width,
+    height,
     trailMarksRequired: Math.min(5, Math.max(1, Math.floor(Number(stage.trailMarksRequired) || 3))),
-    trapCount: Math.min(size * size - 8, Math.max(3, Math.floor(Number(stage.trapCount) || 10))),
+    trapCount: Math.min(width * height - 8, Math.max(3, Math.floor(Number(stage.trapCount) || 10))),
     visibilityRadius: Math.min(4, Math.max(1, Math.floor(Number(stage.visibilityRadius) || 2)))
   };
 }
@@ -1281,10 +1434,55 @@ function updateBadgePanel() {
   }
 }
 
+function showRefreshHintPopup() {
+  document.querySelector("#refresh-hint-popup")?.remove();
+  const popup = document.createElement("div");
+  popup.className = "refresh-hint-popup";
+  popup.id = "refresh-hint-popup";
+  popup.innerHTML = `
+    <button class="refresh-hint-backdrop" type="button" aria-label="Close refresh hint"></button>
+    <section class="refresh-hint-card" role="dialog" aria-modal="true" aria-labelledby="refresh-hint-title">
+      <p class="section-label">Three badges collected</p>
+      <h2 id="refresh-hint-title">The world has changed.</h2>
+      <p>All three seals are awake. The final door only appears when the world is entered again.</p>
+      <p><strong>Refresh the page, then look carefully at the home screen.</strong></p>
+      <div class="button-row">
+        <button class="primary-button" id="refresh-hint-now-button" type="button">Refresh Now</button>
+        <button class="secondary-button" id="refresh-hint-close-button" type="button">Not Yet</button>
+      </div>
+    </section>
+  `;
+  app.append(popup);
+
+  const closePopup = () => popup.remove();
+  popup.querySelector(".refresh-hint-backdrop").addEventListener("click", closePopup);
+  popup.querySelector("#refresh-hint-close-button").addEventListener("click", closePopup);
+  popup.querySelector("#refresh-hint-now-button").addEventListener("click", () => window.location.reload());
+  popup.querySelector("#refresh-hint-now-button").focus();
+}
+
+function unlockAllBadgesWithPassword() {
+  const password = window.prompt("Enter the badge unlock password.");
+  if (password === null) return false;
+  if (password !== RESET_PASSWORD) {
+    window.alert("Badge unlock rejected.");
+    return false;
+  }
+
+  state.badges = [...ALL_BADGES];
+  state.completedRoutes = [...ROUTE_IDS];
+  saveState();
+  updateBadgePanel();
+  renderHome();
+  showRefreshHintPopup();
+  return true;
+}
+
 function renderHome() {
   resetCurrentRoute();
   currentView = "home";
   const secretAvailable = state.secretUnlocked && hadAllBadgesAtLoad;
+  const allBadgesCollected = ALL_BADGES.every((badge) => state.badges.includes(badge));
   const primaryLetterLabel = secretAvailable ? "Open the Final Letter" : "Open the Letter";
   const secretCard = secretAvailable
     ? `
@@ -1307,6 +1505,7 @@ function renderHome() {
         <p class="lead">A letter has arrived for one reader, one wanderer, one solver of impossible things.</p>
         <div class="button-row">
           <button class="primary-button" id="open-letter-button" type="button">${primaryLetterLabel}</button>
+          ${!allBadgesCollected ? '<button class="secondary-button" id="badge-shortcut-button" type="button">Unlock All Badges</button>' : ""}
         </div>
         <p class="home-progress">Badges found: ${state.badges.length} / 3</p>
         ${state.resetUnlocked ? '<p class="completion-notice reset-free-note">The old seal is gone. Reset Quest is now free to use.</p>' : ""}
@@ -1321,6 +1520,8 @@ function renderHome() {
   );
   const secretButton = document.querySelector("#secret-door-button");
   if (secretButton) secretButton.addEventListener("click", renderSecretEnding);
+  const badgeShortcutButton = document.querySelector("#badge-shortcut-button");
+  if (badgeShortcutButton) badgeShortcutButton.addEventListener("click", unlockAllBadgesWithPassword);
 }
 
 function renderLetter() {
@@ -1367,11 +1568,14 @@ function startRoute(routeId) {
   if (!route) return;
 
   currentRouteId = routeId;
+  if (showRingHidingScreenIfLocked(routeId)) return;
   if (!routeProgress[routeId] || state.completedRoutes.includes(routeId)) {
     resetRouteProgress(routeId);
   }
   const progress = getRouteProgress(routeId);
   const nextStep = nextRouteStep(routeId);
+  const completedSteps = completedCount(progress.gatesCompleted) + completedCount(progress.stagesCompleted);
+  const totalSteps = progress.gatesCompleted.length + progress.stagesCompleted.length;
   currentStageIndex = Math.min(nextStep?.index || 0, 3);
   currentFragments = progress.fragments;
   stageSolved = false;
@@ -1396,6 +1600,10 @@ function startRoute(routeId) {
           <h2 id="route-title">${route.name}</h2>
           <p class="lead">${route.intro}</p>
           <p>${route.theme}</p>
+          <div class="route-progress-summary" role="status" aria-label="Saved route progress">
+            <span>Progress saved on this device</span>
+            <strong>${completedSteps} of ${totalSteps} path steps complete</strong>
+          </div>
           <div class="button-row">
             <button class="primary-button" id="begin-trial-button" type="button">${startLabel}</button>
             <button class="secondary-button" id="choose-another-button" type="button">Choose Another Relic</button>
@@ -1426,7 +1634,7 @@ function renderRingAcquisition(routeId) {
         <p class="section-label">A choice before the road</p>
         <h1 id="ring-acquisition-title">You have found a Ring.</h1>
         <p>It offers help freely, but never without cost.</p>
-        <p>Use it once on a road, and the road grows darker.<br>Use it twice on the same road, and that road will close against you for a time.</p>
+        <p>Use it once on a road, and the road grows darker.<br>Use it twice on the same road, and Sauron may sense you. You must hide for one hour before that road is safe again.</p>
         <p>It will not solve the quest for you.<br>It will only ask what you are willing to trade for certainty.</p>
         <div class="button-row">
           <button class="primary-button" id="claim-ring-button" type="button">Continue</button>
@@ -1448,7 +1656,7 @@ function instructionMarkup(rows) {
     ...rows,
     {
       label: "The Ring",
-      copy: "The Ring can reveal a clue for this trial. Each road remembers how often you use it. Use it once on this road, and you will receive help with a warning. Use it twice on the same road, and the whole road will be sealed for a time. The clue appears only after you choose to use the Ring."
+      copy: "The Ring can reveal a clue for this trial. Each road remembers how often you use it. The second use on the same road reveals its clue, then seals only that road for one hour while you hide from Sauron. The other roads remain open."
     }
   ];
   return `
@@ -1505,7 +1713,7 @@ function puzzleInstructionMarkup(type, stage) {
   if (type === "maze") {
     const settings = getMazeSettings(stage);
     return instructionMarkup([
-      { label: "Objective", copy: `Move through the ${settings.size} by ${settings.size} maze, collect ${settings.trailMarksRequired} trail marks, then reach the gate.` },
+      { label: "Objective", copy: `Move through the ${settings.width}-column by ${settings.height}-row maze, collect ${settings.trailMarksRequired} trail marks, then reach the gate.` },
       { label: "Controls", copy: "Use arrow keys or WASD on a keyboard. On touch screens, use the four direction buttons below the maze." },
       { label: "Symbols", copy: "Trail markers look like green maze cells marked M. Your position is P, checkpoints are C, the sealed gate is X, the open gate is G, and traps are ! when visible." },
       { label: "Failure", copy: "A trap sends you back to the latest checkpoint. Three trap hits fail the trial. Reaching the gate before every trail mark is collected also fails the trial." },
@@ -1659,7 +1867,7 @@ function relocateStageSurfaceContent() {
   });
 
   let movedFeedback = false;
-  root.querySelectorAll(".feedback").forEach((element) => {
+  root.querySelectorAll(".feedback:not(.wordle-feedback)").forEach((element) => {
     element.classList.add("stage-strip-feedback");
     feedbackZone.appendChild(element);
     movedFeedback = true;
@@ -1751,7 +1959,7 @@ function gateAnswerMatches(gate, value) {
 function completeGate(routeId, gateIndex) {
   const route = ROUTES[routeId];
   const gate = route?.gates?.[gateIndex];
-  const progress = getRouteProgress(routeId);
+  let progress = getRouteProgress(routeId);
   if (
     stageSolved ||
     routeId !== currentRouteId ||
@@ -1761,7 +1969,9 @@ function completeGate(routeId, gateIndex) {
   ) return;
 
   stageSolved = true;
-  progress.gatesCompleted[gateIndex] = true;
+  progress = updateRouteProgress(routeId, (updatedProgress) => {
+    updatedProgress.gatesCompleted[gateIndex] = true;
+  });
   disposeActivePuzzle();
 
   const gateCount = document.querySelector("#stage-gate-count");
@@ -1992,7 +2202,7 @@ function renderStage() {
   }).join("");
 
   setScreen(`
-    <section class="screen stage-experience route-screen ${routeClass(route.id)}" style="--stage-background-image: url('assets/images/${stage.image}');" aria-labelledby="stage-title">
+    <section class="screen stage-experience route-screen ${routeClass(route.id)} puzzle-${puzzleType}" style="--stage-background-image: url('assets/images/${stage.image}');" aria-labelledby="stage-title">
       <header class="stage-hud" aria-label="Current trial controls">
         <div class="stage-hud-route">
           <strong>${route.name}</strong>
@@ -2093,9 +2303,10 @@ function completeStage(routeId, stageIndex, rewardFragment) {
   ) return;
 
   stageSolved = true;
-  const progress = getRouteProgress(routeId);
-  progress.stagesCompleted[stageIndex] = true;
-  progress.fragments[stageIndex] = stageFragment;
+  const progress = updateRouteProgress(routeId, (updatedProgress) => {
+    updatedProgress.stagesCompleted[stageIndex] = true;
+    updatedProgress.fragments[stageIndex] = stageFragment;
+  });
   currentFragments = progress.fragments;
   disposeActivePuzzle();
 
@@ -2225,10 +2436,10 @@ function renderWordlePuzzle(route, stage, stageIndex) {
         <span><i class="legend-absent"></i> not in word</span>
       </div>
       <div class="wordle-board" style="--wordle-length: ${target.length}" role="grid" aria-label="Six guesses for a ${target.length}-letter word">${boardMarkup()}</div>
-      <p class="feedback wordle-feedback" id="wordle-feedback" aria-live="polite">Type or use the runic keyboard.</p>
       <div class="wordle-keyboard-toggle-row">
         <button class="secondary-button wordle-keyboard-toggle" id="wordle-keyboard-toggle" type="button" aria-controls="wordle-keyboard" aria-expanded="${showKeyboardByDefault ? "true" : "false"}">${showKeyboardByDefault ? "Collapse Runic Keyboard" : "Show Runic Keyboard"}</button>
       </div>
+      <p class="feedback wordle-feedback" id="wordle-feedback" aria-live="polite">Type or use the runic keyboard.</p>
       <div class="wordle-keyboard" id="wordle-keyboard" ${showKeyboardByDefault ? "" : "hidden"} aria-label="Word puzzle keyboard">
         <div class="wordle-keyboard-topline">
           <span>Runic Keyboard</span>
@@ -2798,9 +3009,11 @@ function renderMazePuzzle(route, stage, stageIndex) {
     a: "w",
     A: "w"
   };
-  const size = settings.size;
+  const width = settings.width;
+  const height = settings.height;
+  const spacingScale = Math.min(width, height);
   const start = { x: 0, y: 0 };
-  const exit = { x: size - 1, y: size - 1 };
+  const exit = { x: width - 1, y: height - 1 };
   const exitKey = cellKey(exit.x, exit.y);
   let player = { ...start };
   let failed = false;
@@ -2808,8 +3021,8 @@ function renderMazePuzzle(route, stage, stageIndex) {
   const collectedMarks = new Set();
 
   function createCells() {
-    return Array.from({ length: size }, (_, y) =>
-      Array.from({ length: size }, (_, x) => ({
+    return Array.from({ length: height }, (_, y) =>
+      Array.from({ length: width }, (_, x) => ({
         x,
         y,
         visited: false,
@@ -2825,7 +3038,7 @@ function renderMazePuzzle(route, stage, stageIndex) {
   function validNeighbor(x, y, direction) {
     const nextX = x + directions[direction].dx;
     const nextY = y + directions[direction].dy;
-    if (nextX < 0 || nextY < 0 || nextX >= size || nextY >= size) return null;
+    if (nextX < 0 || nextY < 0 || nextX >= width || nextY >= height) return null;
     return { x: nextX, y: nextY, direction };
   }
 
@@ -2913,11 +3126,11 @@ function renderMazePuzzle(route, stage, stageIndex) {
   function buildOpenFallbackMaze() {
     const cells = createCells();
     cells.flat().forEach((cell) => {
-      if (cell.x < size - 1) {
+      if (cell.x < width - 1) {
         cell.walls.e = false;
         cells[cell.y][cell.x + 1].walls.w = false;
       }
-      if (cell.y < size - 1) {
+      if (cell.y < height - 1) {
         cell.walls.s = false;
         cells[cell.y + 1][cell.x].walls.n = false;
       }
@@ -2935,14 +3148,14 @@ function renderMazePuzzle(route, stage, stageIndex) {
         return { x, y, key, distance };
       })
       .sort((a, b) => b.distance - a.distance);
-    const distantCandidates = startSideCandidates.filter((candidate) => candidate.distance > Math.floor(size / 2));
+    const distantCandidates = startSideCandidates.filter((candidate) => candidate.distance > Math.floor(spacingScale / 2));
     const candidates = distantCandidates.length >= settings.trailMarksRequired
       ? distantCandidates
       : startSideCandidates;
     const marks = [];
 
     candidates.forEach((candidate) => {
-      const farEnough = marks.every((mark) => Math.abs(mark.x - candidate.x) + Math.abs(mark.y - candidate.y) >= Math.floor(size / 3));
+      const farEnough = marks.every((mark) => Math.abs(mark.x - candidate.x) + Math.abs(mark.y - candidate.y) >= Math.floor(spacingScale / 3));
       if (marks.length < settings.trailMarksRequired && farEnough) marks.push(candidate);
     });
     candidates.forEach((candidate) => {
@@ -3052,7 +3265,7 @@ function renderMazePuzzle(route, stage, stageIndex) {
       <span><i class="maze-symbol maze-symbol-trap">!</i> Trap</span>
     </div>
     <p class="puzzle-instructions">Collect every green M trail marker before stepping onto the final gate. Traps return you to the latest checkpoint; the third trap hit locks this trial.</p>
-    <div class="maze-board" style="--maze-size: ${size}" role="grid" aria-label="Foggy maze board">
+    <div class="maze-board" style="--maze-width: ${width}; --maze-height: ${height}" role="grid" aria-label="Foggy maze board, ${width} columns by ${height} rows">
       ${maze.flat().map((cell) => `
         <div class="maze-cell ${Object.entries(cell.walls).filter(([, hasWall]) => hasWall).map(([direction]) => `wall-${direction}`).join(" ")}" data-maze-cell="${cellKey(cell.x, cell.y)}" role="gridcell"></div>
       `).join("")}
@@ -3674,6 +3887,7 @@ function renderRouteEnding(routeId) {
 
   document.querySelector("#another-road-button").addEventListener("click", renderLetter);
   document.querySelector("#ending-home-button").addEventListener("click", renderHome);
+  if (allBadgesNow && !hadAllBadgesAtLoad) showRefreshHintPopup();
 }
 
 function renderSecretEnding() {
@@ -3690,6 +3904,32 @@ function renderSecretEnding() {
   currentLockoutKey = null;
 
   const badges = ALL_BADGES.map((badge) => `<span>${badge}</span>`).join("");
+  const letterParagraphs = [
+    "Nuwa,",
+    "If you are reading this, then somehow you survived the roads, the riddles, the shelves, the shadows, the stage, the Ring, and whatever unreasonable puzzle nonsense I decided to put between you and a birthday message.",
+    "Honestly, bru, that already feels accurate.",
+    "I wanted this to feel like something made for you, not just something made about you. A road for the reader, the puzzle-solver, the movie watcher, the overthinker, the man who would probably inspect every corner of the page because “there might be another ending.” And if you did exactly that, then yes, I am engooding myself, because I knew you would.",
+    "There is something very Ranger-like about the way you move through things. Not loud. Not obvious. Not trying to look magical. But sharp. Careful. Observant. The kind of person who sees tracks where other people only see dirt. The kind of person who understands that skill can look like mystery to people who never saw the training behind it. Rangers are misunderstood because people do not know what they do in the dark, before the danger reaches the kingdom. I think there is something beautiful in that. Quiet work. Hidden discipline. A calling that does not need a crowd to be real.",
+    "And then, of course, there is the road.",
+    "I could not make something for you without thinking of small people carrying impossible things. Of friendship that keeps walking even when the mountain is far, the burden is heavy, and the person carrying it does not always know how tired they are. Sam and Frodo’s friendship is one of those stories that deepends me, because it is not friendship when things are easy. It is friendship when someone stays. When someone says, “I can’t carry it for you, but I can carry you.” That kind of loyalty is rare. That kind of heart is rare.",
+    "I am thankful I get to call you my friend.",
+    "Not just because you are smart, although you are annoyingly smart. Not just because you like puzzles, books, movies, fantasy, and all these beautifully dramatic things. But because having you as a friend has been one of those quiet gifts that makes the road better. Some people are only fun to know when the day is light. But some people make you look forward to the road ahead. You are one of those people.",
+    "I hope this next chapter of your life is good to you. I hope your studies sharpen you without draining you. I hope the things you are working toward begin to open like hidden doors. I hope you keep becoming the kind of man who can carry responsibility without losing warmth, intelligence without losing humility, and ambition without losing heart.",
+    "There is a future version of you waiting somewhere ahead on the road. Wiser. Stronger. More disciplined. Maybe still hungry enough for second breakfast, because obviously some things should never change. I hope you meet that version of yourself with courage. Not loud courage. Not dramatic courage. The quiet kind. The kind that keeps walking.",
+    "And because no quest is complete without a little theatre: I hope you also remember that the mask is never the whole story. The world can be quick to misunderstand what it cannot see. But the right people will learn to see beneath the mask, beneath the performance, beneath the jokes, beneath the silence. They will see the person there. And they will be glad they did.",
+    "So happy birthday, bru.",
+    "May your road be long in the best way.",
+    "May your shelves never run out of stories.",
+    "May your stage always have one more song.",
+    "May your future be full of doors worth opening.",
+    "And may our friendship keep walking, even when the path gets strange.",
+    "I am grateful for you.",
+    "I am proud of you.",
+    "And I am very glad you exist.",
+    "Happy birthday.",
+    "P.S. You can now reset the game with the Reset Quest button. And henceforth the password for Reset Quest and Unlock Badges is 'lingling'. . .",
+    "I know. . ."
+  ];
   setScreen(`
     <section class="screen parchment content-screen secret-screen" aria-labelledby="secret-title">
       <div class="secret-layout">
@@ -3700,8 +3940,7 @@ function renderSecretEnding() {
         <div class="secret-copy">
           <p class="section-label">Every seal is awake</p>
           <h2 class="secret-title" id="secret-title">The True Birthday Letter</h2>
-          <p>[Placeholder heartfelt birthday letter. Replace this with the final personal message that brings together the courage of the Ranger’s Road, the wisdom of the Scholar’s Library, and the music of the Phantom’s Theatre.]</p>
-          <p>[Placeholder closing paragraph: a warm wish for the year ahead, written directly to the birthday traveler.]</p>
+          <div class="secret-letter-body">${letterParagraphs.map((paragraph) => `<p>${paragraph}</p>`).join("")}</div>
           <div class="secret-badges" aria-label="All collected badges">${badges}</div>
           <span class="final-title">Finder of Every Road</span>
           <p class="completion-notice">The old seal is gone. Reset Quest is now free to use.</p>
